@@ -13,6 +13,10 @@ spec:
         app: agent-service-migrate
     spec:
       restartPolicy: Never
+      # Registry vcr.vngcloud.vn la private; thieu dong nay Job se ket o
+      # ImagePullBackOff va apply.sh treo den het timeout 5m.
+      imagePullSecrets:
+        - name: vcr-cred
       containers:
         - name: migrate
           image: IMAGE_AGENT_SERVICE

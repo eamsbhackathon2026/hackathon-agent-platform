@@ -32,6 +32,10 @@ spec:
       labels:
         app: agent-service
     spec:
+      # Registry vcr.vngcloud.vn la private; thieu dong nay pod se ket o
+      # ImagePullBackOff.
+      imagePullSecrets:
+        - name: vcr-cred
       containers:
         - name: agent-service
           image: IMAGE_AGENT_SERVICE

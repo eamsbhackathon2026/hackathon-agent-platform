@@ -133,3 +133,65 @@ tạo secret, `deploy/apply.sh` áp dụng manifest.
 
 Chạy job migration trước khi đưa phiên bản mới vào phục vụ. Không đặt giá trị bí
 mật thật trong lệnh terminal, trong tài liệu hay trong manifest được commit.
+
+### CI/CD
+
+`.github/workflows/agent-platform.yml` chạy khi push vào `main` (trừ tệp `.md`),
+hoặc bấm tay qua *Run workflow*. Ba job nối tiếp:
+
+| Job | Nội dung |
+|---|---|
+| `test` | `make test-go` (`go test -race`), `make test-web` (Vitest), `make build` — `build-web` chạy `tsc -b` nên lỗi kiểu bị chặn tại đây |
+| `build-and-push` | Build hai image cho `linux/amd64`, đẩy vCR với tag commit SHA và `latest` |
+| `deploy` | Tạo namespace, tạo `vcr-cred`, kiểm tra Secret ứng dụng, rồi gọi `deploy/apply.sh` |
+
+Job `deploy` không tự viết lại thứ tự triển khai mà gọi thẳng `deploy/apply.sh`,
+để chỉ có một nguồn quyết định thứ tự: chờ Postgres sẵn sàng → xoá Job migration
+cũ (Job là bất biến) → chạy bản mới và đợi xong → mới đưa image mới vào phục vụ.
+
+Ba secret cần có trong repo GitHub: `VCR_USERNAME`, `VCR_PASSWORD`, `KUBE_CONFIG`
+(kubeconfig đã base64). Không giá trị nào được commit.
+
+**CI không tạo được `postgres-credentials` và `agent-service-config`.** Hai Secret
+này chứa mật khẩu Postgres và ba khóa 32 byte, và phải giữ nguyên giữa các lần
+rollout — đổi khóa là mất hiệu lực toàn bộ token cùng dữ liệu đã mã hóa. Chúng
+được sinh một lần bằng `deploy/create-secrets.sh` ở máy và lưu tại
+`deploy/.env.production`. Job `deploy` chỉ kiểm tra sự tồn tại rồi dừng kèm hướng
+dẫn nếu thiếu.
+
+Trình tự lần đầu:
+
+```sh
+export KUBECONFIG=...                 # trỏ đúng cluster VKS
+sh deploy/create-secrets.sh           # lần 1: sinh file, báo thiếu APP_ORIGIN
+# điền APP_ORIGIN trong deploy/.env.production, xem mục dưới
+sh deploy/create-secrets.sh           # lần 2: tạo Secret trên cluster
+git push                              # CD lo phần còn lại
+```
+
+**`APPLY_INGRESS` mặc định `0` trong workflow.** `deploy/k8s/50-ingress.yaml` tạo
+ALB internet-facing trên vLB — tài nguyên tính phí và đưa trang quản trị ra
+Internet. Bản triển khai hiện tại vào bằng `kubectl port-forward`:
+
+```sh
+kubectl -n agent-platform port-forward svc/admin-web 8090:8080
+kubectl -n agent-platform port-forward svc/agent-service 8091:8080
+```
+
+Vì vậy `APP_ORIGIN` phải là `http://localhost:8090` — đúng cổng bạn port-forward.
+`create-secrets.sh` đưa giá trị này vào `CORS_ORIGINS`; đặt sai thì trang tải được
+nhưng mọi POST/PUT/DELETE bị chặn 403 mà giao diện không nói rõ lý do.
+
+Muốn có địa chỉ công khai thì đổi `APPLY_INGRESS` thành `"1"` trong workflow, chạy
+lại, lấy IP từ `kubectl -n agent-platform get ingress agent-platform`, cập nhật
+`APP_ORIGIN` thành IP đó rồi chạy lại `create-secrets.sh` và khởi động lại
+`agent-service`. Chạy `deploy/apply.sh` bằng tay vẫn tạo ingress như trước, trừ khi
+đặt `APPLY_INGRESS=0`.
+
+### imagePullSecrets
+
+Ba manifest kéo image (`20-migrate-job`, `30-agent-service`, `40-admin-web`) khai
+báo `imagePullSecrets: vcr-cred`. Project trên vCR là private — request tới
+registry không kèm credential trả về `401` — nên thiếu khai báo này thì pod kẹt ở
+`ImagePullBackOff` và `apply.sh` treo tới hết timeout 5 phút. Secret `vcr-cred`
+do job `deploy` tạo từ `VCR_USERNAME`/`VCR_PASSWORD`.

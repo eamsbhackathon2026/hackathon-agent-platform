@@ -1,0 +1,168 @@
+name: build-agent-platform
+
+on:
+  push:
+    branches: [ main ]
+    # Chạy cho mọi thay đổi trừ tài liệu. Lọc theo danh sách vài thư mục dễ dẫn
+    # tới việc sửa file cấu hình mà không sinh image nào, rồi deploy trỏ vào một
+    # tag không tồn tại.
+    paths-ignore:
+      - 'README.md'
+      - '**/*.md'
+  workflow_dispatch: {}
+
+env:
+  # Host registry, project, namespace để công khai; credentials (VCR_*, KUBE_CONFIG)
+  # lấy từ GitHub Secrets — KHÔNG hardcode.
+  REGISTRY: vcr.vngcloud.vn
+  IMAGE_PREFIX: vcr.vngcloud.vn/114544-ea-hackathon
+  NAMESPACE: agent-platform
+  # Ingress tạo ALB internet-facing trên vLB — tài nguyên tính phí. Bản triển
+  # khai hiện tại vào bằng kubectl port-forward. Đổi thành "1" nếu muốn CD tự
+  # tạo ALB và cấp địa chỉ công khai.
+  APPLY_INGRESS: "0"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          # Đọc thẳng từ go.mod để CI không lệch phiên bản khỏi repo.
+          go-version-file: services/agent-service/go.mod
+          cache-dependency-path: services/agent-service/go.sum
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Bật pnpm theo đúng phiên bản ghim trong package.json
+        run: corepack enable
+
+      - name: Cài dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test Go
+        run: make test-go
+
+      - name: Test giao diện
+        run: make test-web
+
+      - name: Build (gồm tsc nên lỗi kiểu bị chặn tại đây)
+        run: make build
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to VNG Container Registry (vCR)
+        uses: docker/login-action@v3
+        with:
+          registry: vcr.vngcloud.vn
+          username: ${{ secrets.VCR_USERNAME }}
+          password: ${{ secrets.VCR_PASSWORD }}
+
+      # Cả hai Dockerfile lấy build context là gốc repo (agent-service cần
+      # services/agent-service, admin-web cần pnpm-lock.yaml ở gốc).
+      - name: Build and push agent-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/agent-service.Dockerfile
+          platforms: linux/amd64
+          push: true
+          cache-from: type=gha,scope=agent-service
+          cache-to: type=gha,scope=agent-service,mode=max
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/agent-service:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}/agent-service:latest
+
+      - name: Build and push admin-web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/admin-web.Dockerfile
+          platforms: linux/amd64
+          push: true
+          cache-from: type=gha,scope=admin-web
+          cache-to: type=gha,scope=admin-web,mode=max
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/admin-web:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}/admin-web:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Write kubeconfig from secret (base64)
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Đảm bảo namespace tồn tại
+        run: kubectl apply -f deploy/k8s/00-namespace.yaml
+
+      - name: Ensure imagePullSecret vcr-cred
+        # Project trên vCR là private (request không kèm credential trả 401) nên
+        # ba manifest kéo image đều khai báo imagePullSecrets: vcr-cred.
+        run: |
+          kubectl -n "${{ env.NAMESPACE }}" create secret docker-registry vcr-cred \
+            --docker-server="${{ env.REGISTRY }}" \
+            --docker-username='${{ secrets.VCR_USERNAME }}' \
+            --docker-password='${{ secrets.VCR_PASSWORD }}' \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Kiểm tra secret ứng dụng đã được tạo chưa
+        # postgres-credentials và agent-service-config chứa mật khẩu Postgres và
+        # ba khóa 32 byte. Chúng phải ổn định giữa các lần rollout — đổi khóa là
+        # mất hiệu lực toàn bộ token và dữ liệu đã mã hóa — nên được tạo một lần
+        # bằng deploy/create-secrets.sh ở máy, CI chỉ kiểm tra chứ không tự sinh.
+        run: |
+          thieu=0
+          for s in postgres-credentials agent-service-config; do
+            if ! kubectl -n "${{ env.NAMESPACE }}" get secret "$s" >/dev/null 2>&1; then
+              echo "::error::Chưa có secret '$s' trong namespace ${{ env.NAMESPACE }}."
+              thieu=1
+            fi
+          done
+          if [ "$thieu" = "1" ]; then
+            echo "::error::Chạy 'sh deploy/create-secrets.sh' ở máy (cần kubectl trỏ đúng cluster) rồi chạy lại workflow."
+            exit 1
+          fi
+
+      - name: Deploy (Postgres → migration → agent-service → admin-web)
+        # apply.sh là nguồn duy nhất quyết định thứ tự triển khai: chờ Postgres
+        # sẵn sàng, xoá Job migration cũ (Job là bất biến) rồi chạy bản mới và
+        # đợi nó xong TRƯỚC khi đưa image mới vào phục vụ.
+        env:
+          # APPLY_INGRESS đã có từ env cấp workflow. Chỉ cần ghi đè REGISTRY vì
+          # apply.sh mong nhận cả project, còn env cấp workflow chỉ là host.
+          REGISTRY: ${{ env.IMAGE_PREFIX }}
+        run: sh deploy/apply.sh "${{ github.sha }}"
+
+      - name: In trạng thái khi deploy hỏng
+        if: failure()
+        run: |
+          kubectl -n "${{ env.NAMESPACE }}" get pods -o wide || true
+          kubectl -n "${{ env.NAMESPACE }}" get events --sort-by=.lastTimestamp | tail -20 || true
+          echo "--- log Job migration (nếu có) ---"
+          kubectl -n "${{ env.NAMESPACE }}" logs job/agent-service-migrate --tail=50 || true
+          echo "ImagePullBackOff nghĩa là image chưa có trên vCR hoặc thiếu secret vcr-cred."

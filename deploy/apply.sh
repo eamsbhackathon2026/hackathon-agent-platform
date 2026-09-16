@@ -41,10 +41,24 @@ kubectl -n "$NAMESPACE" wait --for=condition=complete job/agent-service-migrate 
 
 render "$ROOT/deploy/k8s/30-agent-service.yaml" | kubectl apply -f -
 render "$ROOT/deploy/k8s/40-admin-web.yaml" | kubectl apply -f -
-kubectl apply -f "$ROOT/deploy/k8s/50-ingress.yaml"
+# Ingress tao ALB internet-facing tren vLB — tai nguyen tinh phi va mo dich vu
+# ra Internet. Mac dinh van bat de khong doi hanh vi cua nguoi chay tay; CI dat
+# APPLY_INGRESS=0 vi ban trien khai hien tai vao bang kubectl port-forward.
+APPLY_INGRESS=${APPLY_INGRESS:-1}
+if [ "$APPLY_INGRESS" = "1" ]; then
+	kubectl apply -f "$ROOT/deploy/k8s/50-ingress.yaml"
+else
+	printf 'Bo qua ingress (APPLY_INGRESS=0): khong tao ALB, vao bang port-forward.\n'
+fi
 
 kubectl -n "$NAMESPACE" rollout status deployment/agent-service --timeout=5m
 kubectl -n "$NAMESPACE" rollout status deployment/admin-web --timeout=5m
 
-printf '\nĐịa chỉ công khai (chờ vài phút nếu còn trống):\n'
-kubectl -n "$NAMESPACE" get ingress agent-platform
+if [ "$APPLY_INGRESS" = "1" ]; then
+	printf '\nĐịa chỉ công khai (chờ vài phút nếu còn trống):\n'
+	kubectl -n "$NAMESPACE" get ingress agent-platform
+else
+	printf '\nVao bang port-forward:\n'
+	printf '  kubectl -n %s port-forward svc/admin-web 8090:8080\n' "$NAMESPACE"
+	printf '  kubectl -n %s port-forward svc/agent-service 8091:8080\n' "$NAMESPACE"
+fi

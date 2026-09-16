@@ -31,6 +31,10 @@ spec:
       labels:
         app: admin-web
     spec:
+      # Registry vcr.vngcloud.vn la private; thieu dong nay pod se ket o
+      # ImagePullBackOff.
+      imagePullSecrets:
+        - name: vcr-cred
       containers:
         - name: admin-web
           image: IMAGE_ADMIN_WEB
