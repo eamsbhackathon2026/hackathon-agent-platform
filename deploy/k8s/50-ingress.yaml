@@ -1,0 +1,58 @@
+# Creates a new internet-facing ALB on vLB. The public IP appears in
+# `kubectl -n agent-platform get ingress` once the controller finishes provisioning.
+#
+# The admin UI calls the API on its own origin (window.location.origin), so the
+# API and the SPA must answer on one host. Longest matching path wins, so /v1
+# reaches the API while everything else falls through to the SPA.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agent-platform
+  namespace: agent-platform
+  annotations:
+    vks.vngcloud.vn/load-balancer-name: "alb-agent-platform"
+    vks.vngcloud.vn/scheme: "internet-facing"
+    # TCP health checks suit both pools; an HTTP check would need a different path per pool.
+    vks.vngcloud.vn/healthcheck-protocol: "TCP"
+    # Agent runs stream over SSE. The service sends a heartbeat every 15s, and these
+    # timeouts stay above that so an idle stream is not dropped mid-run.
+    vks.vngcloud.vn/idle-timeout-client: "120"
+    vks.vngcloud.vn/idle-timeout-member: "120"
+spec:
+  ingressClassName: "vngcloud"
+  defaultBackend:
+    service:
+      name: admin-web
+      port:
+        number: 8080
+  rules:
+    - http:
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: agent-service
+                port:
+                  number: 8080
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: agent-service
+                port:
+                  number: 8080
+          - path: /readyz
+            pathType: Exact
+            backend:
+              service:
+                name: agent-service
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-web
+                port:
+                  number: 8080

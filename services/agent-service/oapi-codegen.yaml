@@ -1,0 +1,22 @@
+package: gen
+generate:
+  models: true
+  chi-server: true
+  strict-server: true
+  embedded-spec: true
+output: internal/adapters/inbound/http/gen/api.gen.go
+output-options:
+  include-tags:
+    - system
+    - auth
+    - members
+    - api-keys
+    - providers
+    - agents
+    - tools
+    - skills
+    - runs
+    - sessions
+    - webhooks
+  skip-prune: true
+  nullable-type: true

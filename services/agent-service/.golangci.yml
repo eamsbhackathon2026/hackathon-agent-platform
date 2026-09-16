@@ -1,0 +1,38 @@
+version: "2"
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - revive
+    - gosec
+    - depguard
+  settings:
+    depguard:
+      rules:
+        core:
+          list-mode: lax
+          files:
+            - "**/internal/core/**/*.go"
+          deny:
+            - pkg: agent-platform/services/agent-service/internal/adapters
+              desc: Core chỉ phụ thuộc ports; adapters được ghép từ cmd.
+            - pkg: github.com/go-chi/chi
+              desc: HTTP framework chỉ nằm trong inbound adapter.
+            - pkg: github.com/jackc/pgx
+              desc: Driver Postgres chỉ nằm trong outbound adapter.
+            - pkg: google.golang.org/genai
+              desc: SDK AI chỉ nằm trong outbound adapter.
+            - pkg: github.com/openai/openai-go
+              desc: SDK AI chỉ nằm trong outbound adapter.
+            - pkg: github.com/modelcontextprotocol/go-sdk
+              desc: SDK MCP chỉ nằm trong adapter công cụ.
+  exclusions:
+    generated: strict
+formatters:
+  enable:
+    - gofmt

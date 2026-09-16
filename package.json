@@ -1,0 +1,17 @@
+{
+  "name": "agent-platform",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=22.19.0 <23"
+  },
+  "scripts": {
+    "gen:api": "pnpm --filter @agent-platform/admin-web gen:api",
+    "lint:api": "redocly lint api/openapi.yaml",
+    "typecheck": "pnpm --filter @agent-platform/admin-web typecheck",
+    "check:gen": "node scripts/check-generated.mjs"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.52.1"
+  }
+}

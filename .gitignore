@@ -1,0 +1,23 @@
+# Local agent configuration
+/.codex/
+/.agents/
+/AGENTS.md
+/.claude/
+/CLAUDE.md
+
+# Local OS metadata
+/.DS_Store
+
+# Build output and local configuration
+node_modules/
+dist/
+bin/
+coverage/
+.env
+.env.*
+!.env.example
+*.test
+*.tsbuildinfo
+playwright-report/
+test-results/
+**/reports/harness/

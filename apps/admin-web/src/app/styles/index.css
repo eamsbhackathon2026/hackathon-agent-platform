@@ -1,0 +1,218 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  font-family:
+    "Avenir Next", Avenir, "Segoe UI", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  color: #17233b;
+  background: #f7f5f1;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --radius: 0.875rem;
+  --background: #f7f5f1;
+  --foreground: #17233b;
+  --card: #ffffff;
+  --card-foreground: #17233b;
+  --popover: #ffffff;
+  --popover-foreground: #17233b;
+  --primary: #bf460e;
+  --primary-hover: #a63a08;
+  --primary-foreground: #ffffff;
+  --secondary: #edf1f6;
+  --secondary-foreground: #17233b;
+  --muted: #f0eee9;
+  --muted-foreground: #5e697b;
+  --accent: #fff0e7;
+  --accent-foreground: #8f3107;
+  --destructive: #b4232d;
+  --destructive-foreground: #ffffff;
+  --border: #e3dfd7;
+  --input: #c9c4ba;
+  --ring: #f36c2e;
+  --brand: #f36c2e;
+  --brand-soft: #fff0e7;
+  --sidebar: #14223c;
+  --sidebar-foreground: #f9fafb;
+  --sidebar-muted: #aeb8c9;
+  --sidebar-accent: #ffc3a6;
+  --sidebar-border: #2b3a55;
+  --success: #18794e;
+  --success-soft: #e9f6ef;
+  --warning: #98600a;
+  --warning-soft: #fff7df;
+  --shadow-card: 0 1px 2px rgb(23 35 59 / 4%), 0 12px 32px rgb(23 35 59 / 7%);
+  --shadow-float: 0 18px 48px rgb(15 27 49 / 16%);
+  --motion-fast: 160ms;
+  --motion-base: 220ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--background);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100dvh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 88% -8%, rgb(243 108 46 / 10%), transparent 24rem),
+    linear-gradient(180deg, #fbfaf8 0, var(--background) 22rem);
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+[role="button"],
+a,
+select {
+  touch-action: manipulation;
+}
+
+select {
+  min-height: 2.75rem;
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 3px);
+  background-color: var(--card);
+  color: var(--foreground);
+  transition:
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+
+select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px rgb(243 108 46 / 18%);
+}
+
+::selection {
+  background: rgb(243 108 46 / 22%);
+  color: var(--foreground);
+}
+
+:focus-visible {
+  outline: 3px solid rgb(243 108 46 / 38%);
+  outline-offset: 2px;
+}
+
+.app-content > main {
+  width: 100%;
+  max-width: 90rem;
+  margin-inline: auto;
+}
+
+.app-content > main > header {
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.app-content > main > header h1 {
+  color: var(--foreground);
+  font-size: clamp(1.5rem, 2vw, 1.875rem);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.app-content > main > header h1 + p {
+  max-width: 46rem;
+  margin-top: 0.35rem;
+  line-height: 1.55;
+}
+
+.auth-shell-art {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 84% 18%, rgb(243 108 46 / 32%), transparent 10rem),
+    linear-gradient(145deg, #14223c 0%, #1d3154 100%);
+}
+
+.auth-shell-art::before,
+.auth-shell-art::after {
+  position: absolute;
+  z-index: -1;
+  content: "";
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+}
+
+.auth-shell-art::before {
+  width: 26rem;
+  height: 26rem;
+  right: -11rem;
+  bottom: -10rem;
+}
+
+.auth-shell-art::after {
+  width: 18rem;
+  height: 18rem;
+  right: -5rem;
+  bottom: -5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

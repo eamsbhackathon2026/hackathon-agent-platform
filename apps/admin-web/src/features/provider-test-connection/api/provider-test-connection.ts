@@ -1,0 +1,4 @@
+import { apiClient, type components } from "@/shared/api";
+export type ProviderTestAction = { message: string; action: string };
+export function providerTestAction(code: components["schemas"]["ProblemCode"] | null): ProviderTestAction { if (code === "provider_auth_failed") return { message: "The model connection credentials are incorrect", action: "Edit connection" }; if (code === "provider_unreachable") return { message: "Unable to reach the AI server", action: "Check address" }; if (code === "model_not_found") return { message: "The selected AI model was not found", action: "Choose another model" }; return { message: "The connection is not ready", action: "Try again" }; }
+export async function testProvider(id: string) { const { data, error } = await apiClient.POST("/v1/providers/{providerId}/test", { params: { path: { providerId: id } } }); if (!data) throw error; return data; }

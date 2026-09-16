@@ -1,0 +1,10 @@
+extends:
+  - recommended
+rules:
+  # Chưa có địa chỉ triển khai; localhost là server thật của môi trường phát triển.
+  no-server-example.com: off
+  # Dự án chưa công bố giấy phép sử dụng.
+  info-license: off
+  operation-operationId: error
+  operation-operationId-unique: error
+  security-defined: error

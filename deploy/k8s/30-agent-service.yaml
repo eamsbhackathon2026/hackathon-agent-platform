@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-service
+  namespace: agent-platform
+spec:
+  selector:
+    app: agent-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-service
+  namespace: agent-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # The cluster has a single node, so the old pod must go before the new one can be scheduled.
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: agent-service
+    spec:
+      containers:
+        - name: agent-service
+          image: IMAGE_AGENT_SERVICE
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: agent-service-config
+          env:
+            # Binding to all interfaces is required for the kubelet probes and the Service to reach the pod.
+            - name: HTTP_ADDR
+              value: 0.0.0.0:8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

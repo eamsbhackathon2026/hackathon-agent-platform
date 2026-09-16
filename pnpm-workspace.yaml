@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+
+allowBuilds:
+  msw: true
+
+# Giữ một phiên bản compiler; kiểm chứng codegen với TypeScript 6 bằng typecheck.
+autoInstallPeers: false
+
+minimumReleaseAgeExclude:
+  - zod@4.6.5

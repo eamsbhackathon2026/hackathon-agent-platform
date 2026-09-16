@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/coverage
+**/.vite
+.git
+.env
+.env.*
+bin/
+plans/
+docs/
+.claude/
+.codex/
+.agents/

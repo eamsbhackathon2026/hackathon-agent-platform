@@ -1,0 +1,33 @@
+# Re-apply this Job after every image change that adds migrations.
+# Jobs are immutable, so delete the old one first: kubectl -n agent-platform delete job agent-service-migrate --ignore-not-found
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: agent-service-migrate
+  namespace: agent-platform
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: agent-service-migrate
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: IMAGE_AGENT_SERVICE
+          command: ["/usr/local/bin/migrate"]
+          env:
+            - name: LOG_LEVEL
+              value: info
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: agent-service-config
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
