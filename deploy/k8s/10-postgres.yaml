@@ -77,7 +77,11 @@ spec:
         name: data
       spec:
         accessModes: ["ReadWriteOnce"]
-        # No storageClassName: the cluster default (SSD, 3000 IOPS) is used.
+        # Khai bao tuong minh thay vi dua vao mac dinh cua cluster. Mac dinh o
+        # day la vngcloud-nvme-5000-delete, va CSI driver tu choi cap phat cho
+        # no: "Cannot get volume type with id nvme-iops5000". Ten class duoi day
+        # dung la SSD 3000 IOPS ma comment goc mo ta.
+        storageClassName: vngcloud-ssd-3000-delete
         resources:
           requests:
             storage: 20Gi
