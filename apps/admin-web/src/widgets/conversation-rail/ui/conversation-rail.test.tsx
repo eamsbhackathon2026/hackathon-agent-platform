@@ -24,6 +24,16 @@ function renderRail(overrides: Partial<React.ComponentProps<typeof ConversationR
   return { client, props };
 }
 
+function rightClickItem(title: string) {
+  const item = screen.getByRole("button", { name: new RegExp(`^${title},`) }).closest("li");
+  fireEvent.contextMenu(item as HTMLElement);
+}
+
+async function openItemMenu(title: string) {
+  rightClickItem(title);
+  return await screen.findByRole("menuitem", { name: `Delete ${title}` });
+}
+
 function useAgentHandler(items = [agent]) {
   server.use(http.get(apiUrl("/v1/agents"), () => jsonResponse({ items, next_cursor: null })));
 }
@@ -104,7 +114,11 @@ describe("ConversationRail", () => {
     expect(await screen.findByText(/Stop or wait for the response/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New chat" })).toBeDisabled();
     expect(screen.getByRole("button", { current: "page" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Delete First chat" })).toBeDisabled();
+    rightClickItem("First chat");
+    const deleteItem = await screen.findByRole("menuitem", { name: "Delete First chat" });
+    expect(deleteItem).toHaveAttribute("data-disabled");
+    expect(await screen.findByText("Wait for the response to finish.")).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.getByRole("link", { name: "View workspace conversations" })).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(screen.getByRole("button", { current: "page" }));
     expect(onNew).not.toHaveBeenCalled();
@@ -144,13 +158,13 @@ describe("ConversationRail", () => {
 
     await openRail();
     await screen.findByText("First chat");
-    fireEvent.click(screen.getByRole("button", { name: "Delete Second chat" }));
+    fireEvent.click(await openItemMenu("Second chat"));
     fireEvent.click(await screen.findByRole("button", { name: "Delete conversation" }));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
     expect(onActiveDeleted).not.toHaveBeenCalled();
     expect(props.onSelect).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete First chat" }));
+    fireEvent.click(await openItemMenu("First chat"));
     fireEvent.click(await screen.findByRole("button", { name: "Delete conversation" }));
     await waitFor(() => expect(onActiveDeleted).toHaveBeenCalledTimes(1));
   });

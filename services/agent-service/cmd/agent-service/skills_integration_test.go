@@ -41,10 +41,23 @@ func TestSkillHubHTTPAPIAndRunContext(t *testing.T) {
 	var agent gen.Agent
 	catalog.request("POST", "/v1/agents", map[string]any{"name": "Writing assistant", "provider_id": provider.Id, "model": "test", "system_prompt": "Base guidance", "max_output_tokens": 32}, 201, &agent)
 
-	markdown := []byte("---\nname: Clear writing\ndescription: Improve readability.\n---\nUse active voice.")
+	// The tool the skill names has to exist and be bound, or there is nothing to rewrite
+	// the reference into.
+	toolServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write([]byte(`{"ok":true}`))
+	}))
+	defer toolServer.Close()
+	var tool gen.HttpTool
+	catalog.request("POST", "/v1/tools", map[string]any{"slug": "get_insights", "display_name": "Spending insights", "description": "Read spending insights", "method": "GET", "url_template": toolServer.URL, "params": []map[string]any{}}, 201, &tool)
+	catalog.request("PUT", "/v1/agents/"+agent.Id.String()+"/tools", map[string]any{"tool_ids": []string{tool.Id.String()}, "mcp_server_ids": []string{}}, 200, nil)
+
+	markdown := []byte("---\nname: Clear writing\ndescription: Improve readability.\n---\nUse active voice.\nĐọc $get_insights rồi $missing_tool.\n```bash\necho $fenced_only $get_insights\n```")
 	created := uploadSkill(t, server, catalog.token, "clear-writing.md", markdown, 201)
 	if created.Name != "Clear writing" || created.Content != string(markdown) || created.SourceType != gen.SkillSourceTypeMarkdown {
 		t.Fatalf("created=%+v", created)
+	}
+	if strings.Join(created.ToolRefs, ",") != "get_insights,missing_tool" {
+		t.Fatalf("tool refs=%v", created.ToolRefs)
 	}
 	zipCreated := uploadSkill(t, server, catalog.token, "summaries.zip", zipSkill(t, "summaries/SKILL.md", "# Summaries\n\nLead with the outcome."), 201)
 	if zipCreated.Name != "Summaries" || zipCreated.SourceType != gen.SkillSourceTypeZip {
@@ -121,6 +134,14 @@ func assertSkillRequests(t *testing.T, mu *sync.Mutex, requests *[][]byte, want 
 		requestText := string(request)
 		if !strings.Contains(requestText, "Base guidance") || !strings.Contains(requestText, "<skill_instructions name=\\\"Clear writing\\\">") || !strings.Contains(requestText, "Use active voice.") || strings.Contains(requestText, "Improve readability.") {
 			t.Fatalf("skill context mismatch: %s", requestText)
+		}
+		// A bound tool becomes the name the model was given a schema for, an unbound one
+		// keeps a bare name, and the shell example is left exactly as the author wrote it.
+		if !strings.Contains(requestText, "Đọc http_get_insights rồi missing_tool.") {
+			t.Fatalf("tool references were not rewritten: %s", requestText)
+		}
+		if !strings.Contains(requestText, "echo $fenced_only $get_insights") {
+			t.Fatalf("a fenced example was rewritten: %s", requestText)
 		}
 	}
 }

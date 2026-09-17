@@ -39,12 +39,19 @@ func (s *Service) recordNamedLLMSpan(ctx context.Context, state *executionState,
 func (s *Service) recordToolSpan(ctx context.Context, state *executionState, id uuid.UUID, call domain.ToolCall, result domain.ToolResult, truncated bool, started, ended time.Time) error {
 	status := domain.SpanOK
 	var message *string
+	attributeValues := map[string]any{"call_id": call.ID, "result_truncated": truncated}
+	// The status code decides whether an operator should look at the tool arguments
+	// or at the target service, so it belongs on the span rather than only in the
+	// model's copy of the result.
+	if result.StatusCode != nil {
+		attributeValues["status_code"] = *result.StatusCode
+	}
 	if result.IsError {
 		status = domain.SpanError
-		safe := "Công cụ trả về lỗi."
+		safe := domain.ToolErrorSummary(result.StatusCode)
 		message = &safe
 	}
-	attributes, _ := json.Marshal(map[string]any{"call_id": call.ID, "result_truncated": truncated})
+	attributes, _ := json.Marshal(attributeValues)
 	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
 	return s.Spans.CreateSpan(persistCtx, domain.Span{ID: id, RunID: state.run.ID, ParentSpanID: &state.rootSpanID, Kind: domain.SpanToolCall, Name: "tool.execute", Status: status, ToolName: &call.Name, StartedAt: started, EndedAt: ended, DurationMS: durationMS(started, ended), Attributes: attributes, ErrorMessage: message})

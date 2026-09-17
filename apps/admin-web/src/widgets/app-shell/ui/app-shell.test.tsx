@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { clearAuthSession, setAuthSession } from "@/shared/api";
+import { usePageHeader } from "@/shared/lib";
 import { AppShell } from "./app-shell";
 
 const user = {
@@ -57,4 +58,39 @@ describe("AppShell", () => {
     expect(within(screen.getByRole("banner")).getByRole("heading", { name: "Conversation History" })).toBeInTheDocument();
     expect(screen.getByText("Conversation detail")).toBeInTheDocument();
   });
+
+  it("titles a page from its navigation entry", () => {
+    setAuthSession("token", user);
+    renderAt("/agents", <p>Assistant list</p>);
+
+    const banner = within(screen.getByRole("banner"));
+    expect(banner.getByRole("heading", { name: "AI Assistants" })).toBeInTheDocument();
+    expect(banner.getByText("Create an assistant for each workflow and test it when it is ready.")).toBeInTheDocument();
+  });
+
+  it("lets a detail page replace the title its navigation entry supplies", () => {
+    setAuthSession("token", user);
+    function DetailPage() {
+      usePageHeader({ title: "Support bot", description: "Update how this assistant works." });
+      return <p>Assistant detail</p>;
+    }
+    renderAt("/agents/agent-1", <DetailPage />, "/agents/:agentId");
+
+    const banner = within(screen.getByRole("banner"));
+    expect(banner.getByRole("heading", { name: "Support bot" })).toBeInTheDocument();
+    expect(banner.getByText("Update how this assistant works.")).toBeInTheDocument();
+    expect(banner.queryByRole("heading", { name: "AI Assistants" })).not.toBeInTheDocument();
+  });
 });
+
+function renderAt(entry: string, element: React.ReactElement, path = entry) {
+  render(
+    <MemoryRouter initialEntries={[entry]}>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path={path} element={element} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+}

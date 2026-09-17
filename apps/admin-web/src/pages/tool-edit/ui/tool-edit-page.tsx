@@ -6,7 +6,7 @@ import { apiConnectionQueries, type ApiConnection } from "@/entities/api-connect
 import { toolQueries, type HttpTool, type ToolParam } from "@/entities/tool";
 import { createHttpTool, updateHttpTool } from "@/features/tool-http-upsert";
 import { useAuthSession } from "@/shared/api";
-import { headerRows, headersRecord, secretHeadersPatch, validateDistinctHeaderNames, type HeaderRow } from "@/shared/lib";
+import { headerRows, headersRecord, secretHeadersPatch, usePageHeader, validateDistinctHeaderNames, type HeaderRow } from "@/shared/lib";
 import { Button, Card, CardContent, Skeleton } from "@/shared/ui";
 import { ToolConfigForm } from "@/widgets/tool-config-form";
 
@@ -20,12 +20,16 @@ export function ToolEditPage() {
   const returnTo = search.get("returnTo");
   const connections = useQuery(apiConnectionQueries.list());
   const tool = useQuery({ ...toolQueries.detail(toolId ?? ""), enabled: Boolean(toolId) });
-  if (session.user?.role === "member") return <Card><CardContent className="space-y-3 pt-6"><p>Only administrators can edit tools. Contact an administrator for help.</p><Button asChild variant="outline"><Link to="/tools">Back to tools</Link></Button></CardContent></Card>;
+  const canEdit = session.user?.role !== "member";
+  // Keyed off the route, not the loaded tool, so an edit route never flashes the create title.
+  // A member only sees the "ask an administrator" card, so the header keeps the section title.
+  usePageHeader(canEdit ? { title: toolId ? "Edit tool" : "Create HTTP tool", description: "Describe each input clearly so the assistant can use this tool correctly." } : null);
+  if (!canEdit) return <Card><CardContent className="space-y-3 pt-6"><p>Only administrators can edit tools. Contact an administrator for help.</p><Button asChild variant="outline"><Link to="/tools">Back to tools</Link></Button></CardContent></Card>;
   if (toolId && tool.isPending) return <main className="space-y-4"><Skeleton className="h-8 w-56" /><Skeleton className="h-96 w-full" /></main>;
   if (toolId && (tool.isError || !tool.data)) return <Card><CardContent className="space-y-3 pt-6"><p>Unable to load this tool. It may have been deleted.</p><div className="flex gap-2"><Button variant="outline" onClick={() => void tool.refetch()}>Try again</Button><Button asChild variant="ghost"><Link to="/tools">Back to tools</Link></Button></div></CardContent></Card>;
   const editing = toolId ? tool.data ?? null : null;
   return <main className="space-y-6">
-    <header className="space-y-1"><Button asChild variant="link" className="h-auto p-0 text-muted-foreground"><Link to={returnTo ?? "/tools"}>← Back</Link></Button><h1 className="text-2xl font-semibold">{editing ? "Edit tool" : "Create HTTP tool"}</h1><p className="text-muted-foreground">Describe each input clearly so the assistant can use this tool correctly.</p></header>
+    <Button asChild variant="link" className="h-auto p-0 text-muted-foreground"><Link to={returnTo ?? "/tools"}>← Back</Link></Button>
     <Card><CardContent className="pt-6"><ToolEditor key={editing?.id ?? "new"} editing={editing} connections={connections.data ?? []} onDone={(saved, wasEditing) => { if (wasEditing) { navigate(returnTo ?? "/tools"); return; } const params = new URLSearchParams({ created: saved.id }); if (returnTo) params.set("returnTo", returnTo); navigate(`/tools?${params}`); }} onCancel={() => navigate(returnTo ?? "/tools")} /></CardContent></Card>
   </main>;
 }

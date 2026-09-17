@@ -4,6 +4,7 @@ import { http } from "msw";
 import { describe, expect, it } from "vitest";
 import { server } from "@/test/msw-server";
 import { apiUrl, jsonResponse } from "@/test/typed-handlers";
+import { AgentToolDraftProvider } from "../model";
 import { AgentToolsPanel } from "./agent-tools-panel";
 
 const tool = (id: string, slug: string, connectionId: string | null) => ({ id, kind: "http" as const, slug, display_name: `Tool ${slug}`, description: "", method: "GET" as const, url_template: `/${slug}`, connection_id: connectionId, params: [], public_headers: {}, secret_header_names: [], timeout_seconds: 15, created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" });
@@ -11,7 +12,7 @@ const connection = (id: string, name: string) => ({ id, slug: id, display_name: 
 
 function renderPanel(props: { readOnly?: boolean } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><AgentToolsPanel agentId="agent-1" {...props} /></QueryClientProvider>);
+  return render(<QueryClientProvider client={client}><AgentToolDraftProvider agentId="agent-1"><AgentToolsPanel {...props} /></AgentToolDraftProvider></QueryClientProvider>);
 }
 
 function mockEmptyServersAndBindings(toolIds: string[] = []) {

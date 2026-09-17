@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { http } from "msw";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { server } from "@/test/msw-server";
 import { apiUrl, jsonResponse } from "@/test/typed-handlers";
@@ -31,6 +31,20 @@ describe("ConversationsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Load more" }));
     expect(await screen.findByText("Trang hai")).toBeInTheDocument();
     expect(screen.getByText("Trang một")).toBeInTheDocument();
+  });
+
+  it("asks for the most recently updated conversations first", async () => {
+    const requests = vi.fn();
+    server.use(
+      http.get(apiUrl("/v1/agents"), () => jsonResponse({ items: [], next_cursor: null })),
+      http.get(apiUrl("/v1/sessions"), ({ request }) => {
+        requests(Object.fromEntries(new URL(request.url).searchParams));
+        return jsonResponse({ items: [conversation("1", "Trang một")], next_cursor: null });
+      }),
+    );
+    renderPage();
+    await screen.findByText("Trang một");
+    expect(requests).toHaveBeenCalledWith({ limit: "25", sort: "updated_at" });
   });
 
   it("distinguishes query failure from an empty result", async () => {

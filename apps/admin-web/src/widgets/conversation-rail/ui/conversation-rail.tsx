@@ -34,7 +34,7 @@ function ConversationRailSheet({ activeSessionId, disabled, activeDeleteDisabled
   const content = <ConversationRailContent activeSessionId={activeSessionId} disabled={disabled} activeDeleteDisabled={activeDeleteDisabled} onNew={closeAfter(onNew)} onSelect={selectAndClose} onActiveDeleted={onActiveDeleted} onNavigate={() => setOpen(false)} />;
 
   return <Sheet open={open} onOpenChange={setOpen}>
-    <SheetTrigger asChild><Button type="button" variant="outline" aria-label="Open recent chats" data-playground-context-trigger="recent"><History />Recent chats</Button></SheetTrigger>
+    <SheetTrigger asChild><Button type="button" variant="outline" className="shrink-0" aria-label="Open recent chats" data-playground-context-trigger="recent"><History />Recent chats</Button></SheetTrigger>
     <SheetContent side="left" className="flex w-[min(22rem,calc(100vw-1.5rem))] flex-col gap-0 overscroll-contain p-0 sm:max-w-[22rem]">
       <SheetHeader className="border-b px-4 py-4 pr-14 text-left"><SheetTitle>Recent conversations</SheetTitle><SheetDescription>Your latest Playground chats</SheetDescription></SheetHeader>
       <div className="flex min-h-0 flex-1 flex-col p-4">{content}</div>

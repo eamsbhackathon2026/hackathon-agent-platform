@@ -115,7 +115,14 @@ func (s *Service) processStartedJob(ctx context.Context, run domain.Run, rootID 
 		if err != nil {
 			return internalFailure()
 		}
-		agent.SystemPrompt, err = s.Skills.ResolveSystemPrompt(ctx, agent.ID, agent.SystemPrompt)
+		// The tool set is resolved before the prompt because a skill names the tools it
+		// needs and those references are rewritten into this run's tool names. Resolving
+		// only builds a snapshot and connects nothing, so moving it earlier costs nothing.
+		toolset, err = s.Tools.Resolve(ctx, agent.ID)
+		if err != nil {
+			return safeRunFailure(err)
+		}
+		agent.SystemPrompt, err = s.Skills.ResolveSystemPrompt(ctx, agent.ID, agent.SystemPrompt, toolset.Specs())
 		if err != nil {
 			return safeRunFailure(err)
 		}
@@ -124,10 +131,6 @@ func (s *Service) processStartedJob(ctx context.Context, run domain.Run, rootID 
 			return internalFailure()
 		}
 		client, err = s.client(ctx, provider)
-		if err != nil {
-			return safeRunFailure(err)
-		}
-		toolset, err = s.Tools.Resolve(ctx, agent.ID)
 		if err != nil {
 			return safeRunFailure(err)
 		}

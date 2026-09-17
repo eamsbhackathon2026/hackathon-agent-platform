@@ -932,6 +932,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/reports/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Báo cáo tổng quan
+         * @description Tổng hợp khối lượng sử dụng và độ tin cậy của toàn không gian làm việc trong một khoảng thời gian. Khóa truy cập không gọi được endpoint này. Quyền JWT tối thiểu: admin.
+         */
+        get: operations["GetOverviewReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1208,6 +1228,8 @@ export interface components {
             source_type: "markdown" | "zip";
             source_filename: string;
             checksum: string;
+            /** @description Công cụ skill khai báo bằng tiền tố $ trong phần hướng dẫn; dạng slug cho HTTP tool và server.tool cho MCP. */
+            tool_refs: string[];
             /** Format: uuid */
             created_by: string;
             /** Format: date-time */
@@ -1500,6 +1522,93 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             };
+        };
+        /** @description Khoảng thời gian và múi giờ mà máy chủ đã áp dụng sau khi điền giá trị mặc định. */
+        OverviewRange: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            time_zone: string;
+        };
+        /** @description success_rate null khi không có yêu cầu nào; thời lượng null khi chưa đủ 20 lần xử lý đã kết thúc. */
+        OverviewTotals: {
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            succeeded: number;
+            /** Format: int64 */
+            failed: number;
+            /** Format: int64 */
+            cancelled: number;
+            /** Format: double */
+            success_rate: number | null;
+            /** Format: int64 */
+            sessions: number;
+            /** Format: int64 */
+            avg_duration_ms: number | null;
+            /** Format: int64 */
+            p95_duration_ms: number | null;
+            /** Format: int64 */
+            processing_units: number;
+        };
+        /** @description Mỗi ngày trong khoảng đều có một điểm, kể cả ngày không phát sinh yêu cầu. */
+        OverviewDailyPoint: {
+            /** Format: date */
+            date: string;
+            /** Format: int64 */
+            playground: number;
+            /** Format: int64 */
+            api: number;
+            /** Format: int64 */
+            failed: number;
+        };
+        OverviewAgentRow: {
+            /** Format: uuid */
+            agent_id: string;
+            agent_name: string;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            succeeded: number;
+            /** Format: int64 */
+            failed: number;
+            /** Format: double */
+            success_rate: number | null;
+            /** Format: int64 */
+            p95_duration_ms: number | null;
+            /** Format: int64 */
+            processing_units: number;
+        };
+        OverviewErrorRow: {
+            error_code: components["schemas"]["ProblemCode"];
+            /** Format: int64 */
+            count: number;
+            /** Format: date-time */
+            last_seen_at: string;
+            /** Format: uuid */
+            sample_run_id: string;
+        };
+        /** @description Gom theo tên công cụ đã ghi lại lúc chạy; công cụ đã đổi tên hoặc đã xóa vẫn giữ tên cũ. */
+        OverviewToolRow: {
+            tool_name: string;
+            /** Format: int64 */
+            calls: number;
+            /** Format: int64 */
+            errors: number;
+            /** Format: int64 */
+            p95_duration_ms: number | null;
+        };
+        /** @description Các bảng xếp hạng giới hạn 10 dòng, sắp giảm dần theo số lượng. */
+        OverviewReport: {
+            range: components["schemas"]["OverviewRange"];
+            totals: components["schemas"]["OverviewTotals"];
+            daily: components["schemas"]["OverviewDailyPoint"][];
+            top_agents: components["schemas"]["OverviewAgentRow"][];
+            top_errors: components["schemas"]["OverviewErrorRow"][];
+            top_tools: components["schemas"]["OverviewToolRow"][];
+            /** Format: int64 */
+            step_limit_hits: number;
         };
         /** @enum {string} */
         RunStatus: "queued" | "running" | "succeeded" | "failed" | "cancelled";
@@ -3729,6 +3838,37 @@ export interface operations {
             401: components["responses"]["ProblemResponse"];
             403: components["responses"]["ProblemResponse"];
             404: components["responses"]["ProblemResponse"];
+            default: components["responses"]["ProblemResponse"];
+        };
+    };
+    GetOverviewReport: {
+        parameters: {
+            query?: {
+                /** @description Đầu khoảng thời gian theo created_at, gồm đầu. Mặc định bằng to trừ 7 ngày. */
+                from?: string;
+                /** @description Cuối khoảng thời gian theo created_at, không gồm cuối. Mặc định là thời điểm hiện tại; from phải nhỏ hơn to và khoảng không quá 90 ngày. */
+                to?: string;
+                /** @description Tên múi giờ IANA quyết định ranh giới ngày khi gom nhóm, ví dụ Asia/Ho_Chi_Minh. Mặc định UTC. */
+                time_zone?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Thành công. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewReport"];
+                };
+            };
+            400: components["responses"]["ProblemResponse"];
+            401: components["responses"]["ProblemResponse"];
+            403: components["responses"]["ProblemResponse"];
             default: components["responses"]["ProblemResponse"];
         };
     };

@@ -134,3 +134,23 @@ func zipPayload(t *testing.T, entries []zipEntry) []byte {
 	}
 	return payload.Bytes()
 }
+
+func TestParseUploadReadsToolReferencesFromInstructions(t *testing.T) {
+	skill, err := parseUpload("finance.md", []byte("---\nname: Tài chính\ndescription: Luật.\n---\n# Tài chính\n\nĐọc $get_insights cho tháng này rồi $finance.get_portfolio.\nChi 5$ và $100 triệu không phải công cụ.\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(skill.ToolRefs, ",") != "finance.get_portfolio,get_insights" {
+		t.Fatalf("tool refs = %v", skill.ToolRefs)
+	}
+}
+
+func TestParseUploadIgnoresToolReferencesInFrontmatter(t *testing.T) {
+	skill, err := parseUpload("meta.md", []byte("---\nname: $not_a_tool\ndescription: Luật.\n---\n# Hướng dẫn\n\nKhông nhắc công cụ nào.\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(skill.ToolRefs) != 0 {
+		t.Fatalf("tool refs = %v, want none", skill.ToolRefs)
+	}
+}

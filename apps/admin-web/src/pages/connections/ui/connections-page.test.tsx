@@ -16,7 +16,6 @@ describe("ConnectionsPage", () => {
   it("keeps a new connection model empty and disables credential autofill", async () => {
     setAuthSession("token", user); server.use(http.get(apiUrl("/v1/providers"), () => jsonResponse({ items: [], next_cursor: null })));
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); render(<QueryClientProvider client={client}><MemoryRouter><ConnectionsPage /></MemoryRouter></QueryClientProvider>);
-    expect(screen.getByRole("heading", { name: "Model Connections" })).toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "Add connection" }));
     expect(screen.getByLabelText("Default model")).toHaveValue("");
     expect(screen.getByLabelText("Default model")).toHaveAttribute("autocomplete", "off");

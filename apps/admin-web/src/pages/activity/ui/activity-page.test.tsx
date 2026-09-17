@@ -45,3 +45,48 @@ describe("ActivityPage", () => {
     expect(received).toHaveBeenCalledWith({ limit: "25", agent_id: "agent-1" });
   });
 });
+
+describe("ActivityPage deep links", () => {
+  it("starts from the window a report handed it", async () => {
+    const received = vi.fn();
+    server.use(
+      http.get(apiUrl("/v1/agents"), () => jsonResponse({ items: [agent], next_cursor: null })),
+      http.get(apiUrl("/v1/runs"), ({ request }) => {
+        received(Object.fromEntries(new URL(request.url).searchParams));
+        return jsonResponse({ items: [run], next_cursor: null });
+      }),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const entry = "/activity?agent=agent-1&status=failed&from=2026-09-10T00%3A00%3A00.000Z&to=2026-09-17T00%3A00%3A00.000Z";
+    const router = createMemoryRouter([{ path: "/activity", element: <ActivityPage /> }], { initialEntries: [entry] });
+
+    render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
+
+    expect(await screen.findByText("Compare the latest research")).toBeInTheDocument();
+    expect(received).toHaveBeenCalledWith({
+      limit: "25",
+      agent_id: "agent-1",
+      status: "failed",
+      from: "2026-09-10T00:00:00.000Z",
+      to: "2026-09-17T00:00:00.000Z",
+    });
+  });
+
+  it("ignores a status the API would reject instead of forwarding it", async () => {
+    const received = vi.fn();
+    server.use(
+      http.get(apiUrl("/v1/agents"), () => jsonResponse({ items: [agent], next_cursor: null })),
+      http.get(apiUrl("/v1/runs"), ({ request }) => {
+        received(Object.fromEntries(new URL(request.url).searchParams));
+        return jsonResponse({ items: [run], next_cursor: null });
+      }),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const router = createMemoryRouter([{ path: "/activity", element: <ActivityPage /> }], { initialEntries: ["/activity?status=constructor"] });
+
+    render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>);
+
+    expect(await screen.findByText("Compare the latest research")).toBeInTheDocument();
+    expect(received).toHaveBeenCalledWith({ limit: "25" });
+  });
+});

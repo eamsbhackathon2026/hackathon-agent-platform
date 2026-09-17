@@ -14,7 +14,7 @@ import { SkillsPage } from "./skills-page";
 vi.mock("@/features/skill-import", () => ({ importSkill: vi.fn() }));
 
 const user = { id: "10000000-0000-4000-8000-000000000001", email: "user@example.test", name: "User", role: "admin" as const, status: "active" as const, must_change_password: false, last_login_at: null, created_at: "2026-09-15T00:00:00Z" };
-const skill = { id: "20000000-0000-4000-8000-000000000002", name: "Clear writing", description: "Use plain language.", source_type: "markdown" as const, source_filename: "writing.md", checksum: "0".repeat(64), created_by: user.id, created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" };
+const skill = { id: "20000000-0000-4000-8000-000000000002", name: "Clear writing", description: "Use plain language.", source_type: "markdown" as const, source_filename: "writing.md", checksum: "0".repeat(64), tool_refs: [], created_by: user.id, created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" };
 const secondSkill = { ...skill, id: "20000000-0000-4000-8000-000000000003", name: "Review checklist", source_filename: "review.md" };
 
 function useHandlers() {

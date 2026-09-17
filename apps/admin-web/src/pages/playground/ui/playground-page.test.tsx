@@ -352,7 +352,10 @@ describe("PlaygroundPage", () => {
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Open recent chats" }));
-    expect(await screen.findByRole("button", { name: "Delete Live conversation" })).toBeDisabled();
+    const liveItem = (await screen.findByRole("button", { name: /^Live conversation,/ })).closest("li");
+    fireEvent.contextMenu(liveItem as HTMLElement);
+    expect(await screen.findByRole("menuitem", { name: "Delete Live conversation" })).toHaveAttribute("data-disabled");
+    fireEvent.keyDown(document, { key: "Escape" });
     fireEvent.click(await screen.findByRole("button", { name: "New chat" }));
     expect(await screen.findByRole("alertdialog", { name: "Stop the current response?" })).toBeInTheDocument();
     expect(router.state.location.search).toBe("?agent=agent-1&session=session-live");
@@ -488,7 +491,9 @@ describe("PlaygroundPage", () => {
     const { router } = renderPage("/playground?agent=agent-1&session=session-1");
     await screen.findByText("Test assistant");
     fireEvent.click(screen.getByRole("button", { name: "Open recent chats" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Delete Conversation" }));
+    const item = (await screen.findByRole("button", { name: /^Conversation,/ })).closest("li");
+    fireEvent.contextMenu(item as HTMLElement);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Delete Conversation" }));
     fireEvent.click(await screen.findByRole("button", { name: "Delete conversation" }));
 
     await waitFor(() => expect(router.state.location.search).toBe("?agent=agent-1"));

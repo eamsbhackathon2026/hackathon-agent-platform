@@ -22,6 +22,7 @@ const (
 	ActionRunsRead          Action = "runs:read"
 	ActionSessionsRead      Action = "sessions:read"
 	ActionSpansRead         Action = "spans:read"
+	ActionReportsRead       Action = "reports:read"
 )
 
 // Authorize is fail-closed; ownerID identifies the user or API key that owns a resource.
@@ -52,7 +53,7 @@ func Authorize(p Principal, a Action, ownerID *uuid.UUID) error {
 	switch a {
 	case ActionResourcesRead, ActionRunsWrite:
 		return nil
-	case ActionMembersRead, ActionMembersWrite, ActionAPIKeysRead, ActionAPIKeysWrite, ActionWebhookDeliveries, ActionResourcesWrite:
+	case ActionMembersRead, ActionMembersWrite, ActionAPIKeysRead, ActionAPIKeysWrite, ActionWebhookDeliveries, ActionResourcesWrite, ActionReportsRead:
 		if p.Role == RoleOwner || p.Role == RoleAdmin {
 			return nil
 		}

@@ -55,10 +55,9 @@ export function SkillsPage() {
   };
 
   return <main className="space-y-6">
-    <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-      <div><h1 className="text-2xl font-semibold">Skill Hub</h1><p className="text-muted-foreground">Keep reusable instructions in one place, then choose the skills each assistant should follow.</p></div>
+    <div className="flex justify-end">
       <Button asChild variant="outline"><Link to="/agents"><BookOpen />Manage assistant skills</Link></Button>
-    </header>
+    </div>
 
     {canEdit ? <Card><CardHeader><CardTitle>Add a skill</CardTitle><CardDescription>Upload one Markdown file, or a ZIP containing exactly one SKILL.md. Files are validated before they become available.</CardDescription></CardHeader><CardContent><form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={upload}><Label className="grid flex-1 gap-2">Skill file<Input accept=".md,.markdown,.zip,text/markdown,application/zip" disabled={uploading} name="skill-file" onChange={(event) => setUploadFile(event.currentTarget.files?.[0] ?? null)} required type="file" /></Label><Button disabled={uploading} type="submit"><Upload />{uploading ? "Adding…" : "Add to Skill Hub"}</Button></form><p className="mt-3 text-xs text-muted-foreground">Maximum upload: 2 MiB. The usable SKILL.md content must be UTF-8 and no larger than 100 KiB.</p></CardContent></Card> : <p className="text-sm text-muted-foreground">You can view available skills. Contact an administrator to add or remove them.</p>}
 

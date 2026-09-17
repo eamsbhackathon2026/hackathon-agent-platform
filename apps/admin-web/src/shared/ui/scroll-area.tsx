@@ -12,7 +12,17 @@ const ScrollArea = React.forwardRef<
     className={cn("relative overflow-hidden", className)}
     {...props}
   >
-    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
+    {/*
+      Radix wraps the viewport content in a div with an inline `display: table`,
+      which sizes that wrapper to its content instead of to the viewport. Children
+      then have no upper bound to shrink against, so `truncate` never clips and
+      long text overflows sideways. Forcing the wrapper back to `block` keeps its
+      width at 100% of the viewport, which is what truncating layouts expect.
+      A child too wide to break still overflows and scrolls natively; what the
+      override gives up is the wrapper growing to fit such content. Add an
+      opt-out here if a consumer ever needs that back.
+    */}
+    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit] [&>div]:block!">
       {children}
     </ScrollAreaPrimitive.Viewport>
     <ScrollBar />

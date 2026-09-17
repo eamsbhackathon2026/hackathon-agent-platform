@@ -2,10 +2,14 @@ package domain
 
 import "encoding/json"
 
-// ToolSpec is the provider-neutral JSON Schema declaration of one tool.
+// ToolSpec is the provider-neutral JSON Schema declaration of one tool. Name is
+// generated for the provider and may carry a suffix that disambiguates a collision; Ref
+// is the identity an operator sees on the Tools screen and the identity a skill writes
+// after its $ sigil, so the two stay separable when a skill's instructions are rewritten
+// for the run.
 type ToolSpec struct {
-	Name, Description string
-	JSONSchema        json.RawMessage
+	Name, Ref, Description string
+	JSONSchema             json.RawMessage
 }
 
 // ToolCall preserves provider metadata privately for subsequent turns.
@@ -20,6 +24,11 @@ type ToolResult struct {
 	CallID, Name, Content string
 	IsError               bool
 	Truncated             bool
+	// StatusCode is the HTTP status for tools backed by an HTTP call, nil for MCP
+	// tools and for failures that never reached the target. It travels with the
+	// result so the model and the activity timeline can tell a rejected request
+	// apart from a broken target system.
+	StatusCode *int
 }
 
 // ChatMessage carries conversation text and tool exchanges. ProviderMeta preserves

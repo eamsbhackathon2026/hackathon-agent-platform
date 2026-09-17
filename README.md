@@ -1,11 +1,6 @@
 # Agent Platform
 
-Nền tảng tạo và vận hành trợ lý AI trong một workspace chung. Backend viết bằng Go
-theo kiến trúc hexagonal, trang quản trị viết bằng React theo Feature-Sliced Design,
-hợp đồng API dùng chung mô tả bằng OpenAPI tại `api/openapi.yaml`.
-
-Kho mã này là bản phát hành: chỉ chứa mã nguồn chạy được, cấu hình triển khai và
-script vận hành. Mỗi phiên bản là một commit kèm tag.
+Nền tảng tạo và vận hành trợ lý AI trong một workspace chung. Backend viết bằng Go, trang quản trị viết bằng React, hợp đồng API dùng chung mô tả bằng OpenAPI tại `api/openapi.yaml`.
 
 ## Cấu trúc thư mục
 
@@ -195,3 +190,44 @@ báo `imagePullSecrets: vcr-cred`. Project trên vCR là private — request t�
 registry không kèm credential trả về `401` — nên thiếu khai báo này thì pod kẹt ở
 `ImagePullBackOff` và `apply.sh` treo tới hết timeout 5 phút. Secret `vcr-cred`
 do job `deploy` tạo từ `VCR_USERNAME`/`VCR_PASSWORD`.
+
+## Lỗi đã biết ở dịch vụ phụ thuộc
+
+Hai lỗi dưới đây nằm trong các dịch vụ `finance-demo` do nhóm khác vận hành, **không
+phải lỗi của Agent Platform**. Ghi lại vì chúng làm công cụ trả `500` và người vận hành
+dễ nghi nhầm sang cấu hình nền tảng. Cả hai đo được ngày 2026-09-16.
+
+| Dịch vụ | Endpoint | Triệu chứng |
+| --- | --- | --- |
+| `risk-scoring-service` | `POST /transfer/precheck` | `500` khi mã khách hàng hoặc mã tài khoản không tồn tại |
+| `transaction-service` | `POST /customers/{id}/recommendations/generate` | `500` với **mọi** khách hàng |
+
+**Lỗi thứ nhất** — endpoint ghi thẳng vào bảng `risk_decision` mà không kiểm tra khách
+hàng và tài khoản có tồn tại, để Postgres từ chối rồi không bắt ngoại lệ:
+
+```text
+File "/app/main.py", line 587, in precheck
+psycopg.errors.ForeignKeyViolation: insert or update on table "risk_decision"
+violates foreign key constraint "risk_decision_customer_id_fkey"
+```
+
+Cả `risk_decision_customer_id_fkey` lẫn `risk_decision_account_id_fkey` đều dính. Đúng
+ra phải trả `404`, như chính các endpoint khác của nhóm dịch vụ này vẫn làm.
+
+**Lỗi thứ hai** — endpoint gọi nội bộ sang phần dự báo dòng tiền và truyền nhầm một đối
+tượng `Query` của FastAPI vào chỗ cần số nguyên:
+
+```text
+File "/app/main.py", line 660, in generate_recommendations
+File "/app/main.py", line 333, in cashflow_forecast
+TypeError: 'Query' object cannot be interpreted as an integer
+```
+
+Đây là lỗi lập trình, không phụ thuộc dữ liệu đầu vào, nên hỏng với mọi khách hàng.
+`GET /customers/{id}/recommendations` đọc gợi ý đã có vẫn chạy bình thường; chỉ việc
+sinh gợi ý mới là hỏng.
+
+Trong lúc chờ sửa, trợ lý xử lý đúng: nền tảng chuyển mã lỗi HTTP kèm phân loại tới mô
+hình, nên trợ lý báo chưa tra cứu được thay vì tự suy đoán kết quả, và không gọi lại vô
+ích. Span `tool.execute` mang `status_code`, nên màn Hoạt động chẩn đoán được ngay mà
+không cần đọc log của dịch vụ đích.

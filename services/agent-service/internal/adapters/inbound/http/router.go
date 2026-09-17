@@ -21,6 +21,7 @@ type Handler struct {
 	*RunHandler
 	*SessionHandler
 	*WebhookDeliveryHandler
+	*ReportHandler
 }
 
 // RouterOptions supplies authentication and browser access settings.

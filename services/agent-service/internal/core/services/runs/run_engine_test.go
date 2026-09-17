@@ -114,7 +114,7 @@ func TestStreamUsesSingleSkillSnapshot(t *testing.T) {
 	fixture := newEngineFixture(t, []fakes.LLMStep{{Result: domain.LLMResult{Text: "Done", FinishReason: "stop"}}}, nil, nil)
 	fixture.command.Mode = domain.RunModeStream
 	resolutions := 0
-	fixture.service.Skills = &fakes.SkillResolver{Resolve: func(_ context.Context, _ uuid.UUID, base string) (string, error) {
+	fixture.service.Skills = &fakes.SkillResolver{Resolve: func(_ context.Context, _ uuid.UUID, base string, _ []domain.ToolSpec) (string, error) {
 		resolutions++
 		if resolutions > 1 {
 			return "", errors.New("skill changed after preflight")
@@ -395,4 +395,139 @@ func equalEvents(got, want []domain.RunEventType) bool {
 		}
 	}
 	return true
+}
+
+// Without the status on the span, the activity timeline could only say a tool failed,
+// so diagnosing a failure meant reading the upstream service's own logs.
+func TestRunEngineRecordsToolHTTPStatusOnSpan(t *testing.T) {
+	serverError := 500
+	steps := []fakes.LLMStep{
+		{Result: domain.LLMResult{ToolCalls: []domain.ToolCall{{ID: "c1", Name: "lookup", Arguments: json.RawMessage(`{"q":1}`)}}, FinishReason: "tool_calls"}},
+		{Result: domain.LLMResult{Text: "Không tra cứu được", FinishReason: "stop"}},
+	}
+	toolset := &fakes.ToolSet{Results: []domain.ToolResult{{Content: "Internal Server Error", IsError: true, StatusCode: &serverError}}}
+	fixture := newEngineFixture(t, steps, nil, toolset)
+	run, err := fixture.service.RunSync(t.Context(), fixture.principal, fixture.command)
+	if err != nil || run.Status != domain.RunSucceeded {
+		t.Fatalf("run=%+v err=%v", run, err)
+	}
+	spans, _ := fixture.store.ListSpans(t.Context(), run.ID, 20, nil)
+	var checked bool
+	for _, span := range spans {
+		if span.Kind != domain.SpanToolCall {
+			continue
+		}
+		checked = true
+		var attributes map[string]any
+		if json.Unmarshal(span.Attributes, &attributes) != nil || attributes["status_code"] != float64(serverError) {
+			t.Fatalf("span thiếu status_code: %s", span.Attributes)
+		}
+		if span.Status != domain.SpanError || span.ErrorMessage == nil || !strings.Contains(*span.ErrorMessage, "500") {
+			t.Fatalf("span không nêu mã lỗi: %+v", span)
+		}
+		// The timeline is read by people, not by the model.
+		if strings.Contains(*span.ErrorMessage, "tham số") {
+			t.Fatalf("chỉ dẫn dành cho mô hình lọt vào span: %q", *span.ErrorMessage)
+		}
+	}
+	if !checked {
+		t.Fatal("không có span tool nào")
+	}
+}
+
+// The boundary is worthless unless it actually reaches the provider on every run mode,
+// and unless it survives alongside the operator's prompt rather than replacing it.
+func TestRunEngineStatesCapabilityBoundaryInSystemPrompt(t *testing.T) {
+	toolset := &fakes.ToolSet{Tools: []domain.ToolSpec{
+		{Name: "http_precheck_transfer", Description: "Chấm điểm rủi ro một lệnh chuyển tiền."},
+		{Name: "http_take_action", Description: "Chốt hành động cuối."},
+	}}
+	steps := []fakes.LLMStep{{Result: domain.LLMResult{Text: "Xong", FinishReason: "stop"}}}
+	fixture := newEngineFixture(t, steps, nil, toolset)
+	fixture.service.Skills = &fakes.SkillResolver{Prompt: "Bạn là trợ lý chống lừa đảo chuyển tiền."}
+	if _, err := fixture.service.RunSync(t.Context(), fixture.principal, fixture.command); err != nil {
+		t.Fatal(err)
+	}
+	requests := fixture.llm.Requests()
+	if len(requests) != 1 {
+		t.Fatalf("requests=%d", len(requests))
+	}
+	prompt := requests[0].SystemPrompt
+	if !strings.Contains(prompt, "Bạn là trợ lý chống lừa đảo chuyển tiền.") {
+		t.Fatalf("chỉ dẫn của người dựng bị thay mất: %q", prompt)
+	}
+	for _, name := range []string{"http_precheck_transfer", "http_take_action"} {
+		if !strings.Contains(prompt, name) {
+			t.Fatalf("thiếu %q trong mục năng lực: %q", name, prompt)
+		}
+	}
+	if !strings.Contains(prompt, "Never promise") || !strings.Contains(prompt, "never mention tool names") {
+		t.Fatalf("thiếu luật ranh giới năng lực: %q", prompt)
+	}
+}
+
+// Stating the time is pointless unless it reaches the provider, and the capability
+// boundary has to stay last so it still reads as the final word.
+func TestRunEngineStatesCurrentTimeBeforeCapabilityBoundary(t *testing.T) {
+	toolset := &fakes.ToolSet{Tools: []domain.ToolSpec{{Name: "http_get_insights", Description: "Đọc insight chi tiêu."}}}
+	steps := []fakes.LLMStep{{Result: domain.LLMResult{Text: "Xong", FinishReason: "stop"}}}
+	fixture := newEngineFixture(t, steps, nil, toolset)
+	if _, err := fixture.service.RunSync(t.Context(), fixture.principal, fixture.command); err != nil {
+		t.Fatal(err)
+	}
+	prompt := fixture.llm.Requests()[0].SystemPrompt
+	if !strings.Contains(prompt, "## Current date and time") {
+		t.Fatalf("thiếu mục thời gian: %q", prompt)
+	}
+	if !strings.Contains(prompt, "Never assume a year") {
+		t.Fatalf("thiếu luật cấm tự đoán năm: %q", prompt)
+	}
+	if strings.Index(prompt, "## Current date and time") > strings.Index(prompt, "## Capabilities") {
+		t.Fatal("mục thời gian phải đứng trước mục năng lực")
+	}
+}
+
+// A skill names the tools it needs, and the name it writes is the operator-facing slug
+// rather than the name generated for the provider. The run is the only place that knows
+// both, so it has to hand the resolver the tools it resolved for this run.
+func TestRunEngineGivesSkillResolverTheResolvedTools(t *testing.T) {
+	toolset := &fakes.ToolSet{Tools: []domain.ToolSpec{{Name: "http_get_insights", Ref: "get_insights", Description: "Đọc insight chi tiêu."}}}
+	steps := []fakes.LLMStep{{Result: domain.LLMResult{Text: "Xong", FinishReason: "stop"}}}
+	fixture := newEngineFixture(t, steps, nil, toolset)
+	resolver := &fakes.SkillResolver{Resolve: func(_ context.Context, _ uuid.UUID, base string, specs []domain.ToolSpec) (string, error) {
+		return base + "\n\nĐọc " + domain.RewriteSkillToolRefs("$get_insights", specs) + ".", nil
+	}}
+	fixture.service.Skills = resolver
+	if _, err := fixture.service.RunSync(t.Context(), fixture.principal, fixture.command); err != nil {
+		t.Fatal(err)
+	}
+	if len(resolver.Specs) != 1 || resolver.Specs[0].Ref != "get_insights" {
+		t.Fatalf("resolver không nhận được tool của run: %+v", resolver.Specs)
+	}
+	if prompt := fixture.llm.Requests()[0].SystemPrompt; !strings.Contains(prompt, "Đọc http_get_insights.") {
+		t.Fatalf("tham chiếu chưa đổi thành tên runtime: %q", prompt)
+	}
+}
+
+// The async worker resolves the prompt and the tool set in one setup block, so the order
+// of those two steps decides whether a skill's tool references can be rewritten at all.
+func TestAsyncRunGivesSkillResolverTheResolvedTools(t *testing.T) {
+	toolset := &fakes.ToolSet{Tools: []domain.ToolSpec{{Name: "http_get_insights", Ref: "get_insights", Description: "Đọc insight chi tiêu."}}}
+	steps := []fakes.LLMStep{{Result: domain.LLMResult{Text: "Xong", FinishReason: "stop"}}}
+	fixture := newEngineFixture(t, steps, nil, toolset)
+	resolver := &fakes.SkillResolver{Resolve: func(_ context.Context, _ uuid.UUID, base string, specs []domain.ToolSpec) (string, error) {
+		return base + "\n\nĐọc " + domain.RewriteSkillToolRefs("$get_insights", specs) + ".", nil
+	}}
+	fixture.service.Skills = resolver
+	_, job := seedQueuedRun(t, fixture)
+	if err := fixture.service.ProcessJob(t.Context(), "worker-a", job); err != nil {
+		t.Fatal(err)
+	}
+	if len(resolver.Specs) != 1 || resolver.Specs[0].Ref != "get_insights" {
+		t.Fatalf("resolver không nhận được tool của run: %+v", resolver.Specs)
+	}
+	requests := fixture.llm.Requests()
+	if len(requests) != 1 || !strings.Contains(requests[0].SystemPrompt, "Đọc http_get_insights.") {
+		t.Fatalf("tham chiếu chưa đổi thành tên runtime: %+v", requests)
+	}
 }

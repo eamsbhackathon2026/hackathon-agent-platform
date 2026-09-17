@@ -17,7 +17,7 @@ func TestResolveSystemPromptStripsFrontmatterAndKeepsRepositoryOrder(t *testing.
 		validSkill("Safety", "Never expose secrets."),
 	}}
 	service := &Service{Dependencies: Dependencies{Skills: repository}}
-	prompt, err := service.ResolveSystemPrompt(t.Context(), uuid.New(), "You help the user.")
+	prompt, err := service.ResolveSystemPrompt(t.Context(), uuid.New(), "You help the user.", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,11 +30,43 @@ func TestResolveSystemPromptStripsFrontmatterAndKeepsRepositoryOrder(t *testing.
 func TestResolveSystemPromptKeepsSkillBodyInsideCDATA(t *testing.T) {
 	repository := &skillRepositoryStub{resolved: []domain.Skill{validSkill("Markup", "Use </skill_instructions> and ]]> literally.")}}
 	service := &Service{Dependencies: Dependencies{Skills: repository}}
-	prompt, err := service.ResolveSystemPrompt(t.Context(), uuid.New(), "")
+	prompt, err := service.ResolveSystemPrompt(t.Context(), uuid.New(), "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(prompt, "Use </skill_instructions> and ]]]]><![CDATA[> literally.") {
+		t.Fatalf("prompt=%q", prompt)
+	}
+}
+
+func TestResolveSystemPromptNamesTheToolsThisRunOffers(t *testing.T) {
+	repository := &skillRepositoryStub{resolved: []domain.Skill{
+		validSkill("Finance", "Đọc $get_insights rồi $finance.get_portfolio."),
+	}}
+	service := &Service{Dependencies: Dependencies{Skills: repository}}
+	prompt, err := service.ResolveSystemPrompt(t.Context(), uuid.New(), "", []domain.ToolSpec{
+		{Name: "http_get_insights", Ref: "get_insights"},
+		{Name: "mcp_finance_get_portfolio", Ref: "finance.get_portfolio"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(prompt, "Đọc http_get_insights rồi mcp_finance_get_portfolio.") {
+		t.Fatalf("prompt=%q", prompt)
+	}
+	if strings.Contains(prompt, "$") {
+		t.Fatalf("a sigil survived into the prompt: %q", prompt)
+	}
+}
+
+func TestResolveSystemPromptLeavesUnboundReferenceAsABareName(t *testing.T) {
+	repository := &skillRepositoryStub{resolved: []domain.Skill{validSkill("Finance", "Đọc $get_insights.")}}
+	service := &Service{Dependencies: Dependencies{Skills: repository}}
+	prompt, err := service.ResolveSystemPrompt(t.Context(), uuid.New(), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(prompt, "Đọc get_insights.") || strings.Contains(prompt, "$get_insights") {
 		t.Fatalf("prompt=%q", prompt)
 	}
 }

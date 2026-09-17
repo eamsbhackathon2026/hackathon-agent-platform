@@ -5,6 +5,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,7 +23,7 @@ func TestSkillRepositoryRoundTripBindingsAndCascade(t *testing.T) {
 	if err := store.CreateAgent(ctx, agent); err != nil {
 		t.Fatal(err)
 	}
-	skill := domain.Skill{ID: uuid.New(), Name: "Clear writing", Description: "Use plain language.", SourceType: domain.SkillSourceMarkdown, SourceFilename: "writing.md", Content: "# Clear writing\n\nUse plain language.", Checksum: "0000000000000000000000000000000000000000000000000000000000000000", CreatedBy: agent.CreatedBy, CreatedAt: time.Now().UTC().Truncate(time.Microsecond), UpdatedAt: time.Now().UTC().Truncate(time.Microsecond)}
+	skill := domain.Skill{ID: uuid.New(), Name: "Clear writing", Description: "Use plain language.", SourceType: domain.SkillSourceMarkdown, SourceFilename: "writing.md", Content: "# Clear writing\n\nRead $get_insights then $finance.get_portfolio.", Checksum: "0000000000000000000000000000000000000000000000000000000000000000", ToolRefs: []string{"finance.get_portfolio", "get_insights"}, CreatedBy: agent.CreatedBy, CreatedAt: time.Now().UTC().Truncate(time.Microsecond), UpdatedAt: time.Now().UTC().Truncate(time.Microsecond)}
 	if err := store.WithinTx(ctx, func(ctx context.Context) error {
 		if err := store.LockSkills(ctx); err != nil {
 			return err
@@ -35,9 +36,15 @@ func TestSkillRepositoryRoundTripBindingsAndCascade(t *testing.T) {
 	if err != nil || got.Name != skill.Name || got.Content != skill.Content {
 		t.Fatalf("skill=%+v err=%v", got, err)
 	}
+	if strings.Join(got.ToolRefs, ",") != "finance.get_portfolio,get_insights" {
+		t.Fatalf("tool refs from GetSkill=%v", got.ToolRefs)
+	}
 	items, err := store.ListSkills(ctx, domain.PageOptions{Limit: 2})
 	if err != nil || len(items) != 1 {
 		t.Fatalf("items=%+v err=%v", items, err)
+	}
+	if strings.Join(items[0].ToolRefs, ",") != "finance.get_portfolio,get_insights" {
+		t.Fatalf("tool refs from ListSkills=%v", items[0].ToolRefs)
 	}
 	bindings := domain.AgentSkillBindings{SkillIDs: []uuid.UUID{skill.ID}}
 	if err = store.WithinTx(ctx, func(ctx context.Context) error {

@@ -1,9 +1,10 @@
 import { Ellipsis, KeyRound, Menu, Waypoints } from "lucide-react";
+import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 
 import { canManageWorkspace, roleLabel, useAuthSession } from "@/entities/session-user";
 import { LogoutButton } from "@/features/auth-logout";
-import { cn } from "@/shared/lib";
+import { cn, PageHeaderProvider, type PageHeaderContent } from "@/shared/lib";
 import { navItems } from "@/shared/config";
 import {
   Button,
@@ -79,7 +80,10 @@ function AccountMenu({ mobile = false }: { mobile?: boolean }) {
 
 export function AppShell() {
   const location = useLocation();
-  const title = navItems.find((item) => location.pathname.startsWith(item.to))?.label ?? "Agent Platform";
+  const [pageHeader, setPageHeader] = useState<PageHeaderContent | null>(null);
+  const section = navItems.find((item) => location.pathname.startsWith(item.to));
+  const title = pageHeader?.title ?? section?.label ?? "Agent Platform";
+  const description = pageHeader ? pageHeader.description : section?.description;
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[272px_1fr]">
@@ -91,7 +95,7 @@ export function AppShell() {
       </aside>
       <div className="min-w-0">
         <header className="sticky top-0 z-20 flex min-h-18 items-center border-b-2 border-brand/40 bg-white/95 px-4 py-3 shadow-[0_5px_18px_rgb(23_35_59/0.04)] backdrop-blur-md md:px-8">
-          <div className="flex items-center gap-3">
+          <div className="mx-auto flex w-full min-w-0 max-w-[90rem] items-center gap-3">
             <Sheet>
               <SheetTrigger asChild><Button className="md:hidden" size="icon" variant="ghost" aria-label="Open navigation"><Menu /></Button></SheetTrigger>
               <SheetContent side="left" className="flex w-72 flex-col border-sidebar-border bg-sidebar p-5 text-sidebar-foreground">
@@ -101,10 +105,17 @@ export function AppShell() {
                 <div className="border-t border-sidebar-border pt-3"><AccountMenu mobile /></div>
               </SheetContent>
             </Sheet>
-            <div><p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">Workspace</p><h1 className="text-lg font-semibold tracking-[-0.02em] text-foreground">{title}</h1></div>
+            <div className="min-w-0">
+              <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">Workspace</p>
+              <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-foreground" id="page-title" title={title}>{title}</h1>
+              {/* Two lines so a narrow screen still reads the whole sentence; it stays one line at desktop width. */}
+              {description ? <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{description}</p> : null}
+            </div>
           </div>
         </header>
-        <div id="main-content" className="app-content p-4 pb-10 md:p-8 md:pb-12" role="main" tabIndex={-1}><Outlet /></div>
+        <div id="main-content" aria-labelledby="page-title" className="app-content p-4 pb-10 md:p-8 md:pb-12" role="main" tabIndex={-1}>
+          <PageHeaderProvider onChange={setPageHeader}><Outlet /></PageHeaderProvider>
+        </div>
       </div>
     </div>
   );

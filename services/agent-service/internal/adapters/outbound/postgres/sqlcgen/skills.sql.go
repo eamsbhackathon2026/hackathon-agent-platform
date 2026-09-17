@@ -26,8 +26,8 @@ func (q *Queries) AddAgentSkill(ctx context.Context, arg AddAgentSkillParams) er
 }
 
 const createSkill = `-- name: CreateSkill :exec
-INSERT INTO skills (id,name,description,source_type,source_filename,content,checksum,created_by,created_at,updated_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+INSERT INTO skills (id,name,description,source_type,source_filename,content,checksum,tool_refs,created_by,created_at,updated_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 `
 
 type CreateSkillParams struct {
@@ -38,6 +38,7 @@ type CreateSkillParams struct {
 	SourceFilename string             `json:"source_filename"`
 	Content        string             `json:"content"`
 	Checksum       string             `json:"checksum"`
+	ToolRefs       []string           `json:"tool_refs"`
 	CreatedBy      pgtype.UUID        `json:"created_by"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
@@ -52,6 +53,7 @@ func (q *Queries) CreateSkill(ctx context.Context, arg CreateSkillParams) error 
 		arg.SourceFilename,
 		arg.Content,
 		arg.Checksum,
+		arg.ToolRefs,
 		arg.CreatedBy,
 		arg.CreatedAt,
 		arg.UpdatedAt,
@@ -81,7 +83,7 @@ func (q *Queries) DeleteSkill(ctx context.Context, id pgtype.UUID) (int64, error
 }
 
 const getSkill = `-- name: GetSkill :one
-SELECT id, name, description, source_type, source_filename, content, checksum, created_by, created_at, updated_at FROM skills WHERE id=$1
+SELECT id, name, description, source_type, source_filename, content, checksum, created_by, created_at, updated_at, tool_refs FROM skills WHERE id=$1
 `
 
 func (q *Queries) GetSkill(ctx context.Context, id pgtype.UUID) (Skill, error) {
@@ -98,6 +100,7 @@ func (q *Queries) GetSkill(ctx context.Context, id pgtype.UUID) (Skill, error) {
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ToolRefs,
 	)
 	return i, err
 }
@@ -128,7 +131,7 @@ func (q *Queries) ListAgentSkillIDs(ctx context.Context, agentID pgtype.UUID) ([
 }
 
 const listSkills = `-- name: ListSkills :many
-SELECT id,name,description,source_type,source_filename,checksum,created_by,created_at,updated_at FROM skills
+SELECT id,name,description,source_type,source_filename,checksum,tool_refs,created_by,created_at,updated_at FROM skills
 WHERE ($2::timestamptz IS NULL OR (created_at,id) < ($2::timestamptz, $3::uuid))
 ORDER BY created_at DESC,id DESC LIMIT $1
 `
@@ -146,6 +149,7 @@ type ListSkillsRow struct {
 	SourceType     string             `json:"source_type"`
 	SourceFilename string             `json:"source_filename"`
 	Checksum       string             `json:"checksum"`
+	ToolRefs       []string           `json:"tool_refs"`
 	CreatedBy      pgtype.UUID        `json:"created_by"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
@@ -167,6 +171,7 @@ func (q *Queries) ListSkills(ctx context.Context, arg ListSkillsParams) ([]ListS
 			&i.SourceType,
 			&i.SourceFilename,
 			&i.Checksum,
+			&i.ToolRefs,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -191,7 +196,7 @@ func (q *Queries) LockSkills(ctx context.Context) error {
 }
 
 const resolveAgentSkills = `-- name: ResolveAgentSkills :many
-SELECT s.id, s.name, s.description, s.source_type, s.source_filename, s.content, s.checksum, s.created_by, s.created_at, s.updated_at FROM skills s JOIN agent_skills b ON b.skill_id=s.id
+SELECT s.id, s.name, s.description, s.source_type, s.source_filename, s.content, s.checksum, s.created_by, s.created_at, s.updated_at, s.tool_refs FROM skills s JOIN agent_skills b ON b.skill_id=s.id
 WHERE b.agent_id=$1 ORDER BY lower(s.name),s.id
 `
 
@@ -215,6 +220,7 @@ func (q *Queries) ResolveAgentSkills(ctx context.Context, agentID pgtype.UUID) (
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ToolRefs,
 		); err != nil {
 			return nil, err
 		}

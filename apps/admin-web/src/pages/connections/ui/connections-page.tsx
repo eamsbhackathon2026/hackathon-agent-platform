@@ -119,7 +119,7 @@ export function ConnectionsPage() {
   };
 
   return <main className="space-y-6">
-    <header className="flex justify-between"><div><h1 className="text-2xl font-semibold">Model Connections</h1><p className="text-muted-foreground">Connect the AI services that power your assistants.</p></div>{canEdit ? <Button onClick={() => showForm ? setShowForm(false) : openCreate()}><Plus />Add connection</Button> : null}</header>
+    {canEdit ? <div className="flex justify-end"><Button onClick={() => showForm ? setShowForm(false) : openCreate()}><Plus />Add connection</Button></div> : null}
     {!canEdit ? <p className="text-sm text-muted-foreground">Only administrators can edit connections. Contact an administrator for help.</p> : null}
     {providers.isError ? <Card><CardContent className="pt-6">Unable to load connections. <Button variant="link" onClick={() => void providers.refetch()}>Try again</Button></CardContent></Card> : null}
     {showForm ? <Card><CardHeader><CardTitle>{editing ? "Edit connection" : "New connection"}</CardTitle><CardDescription>Choose a service. Credentials are stored securely and are never displayed again.</CardDescription></CardHeader><CardContent><form key={editing?.id ?? "new"} autoComplete="off" className="grid gap-4 md:grid-cols-2" onSubmit={submit}>

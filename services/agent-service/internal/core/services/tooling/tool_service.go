@@ -171,7 +171,7 @@ func (s *Service) TestTool(ctx context.Context, principal domain.Principal, id u
 	result.Body = invocation.Body
 	result.Truncated = invocation.Truncated
 	if invocation.IsError {
-		result.Failure = &domain.ProviderFailure{Code: "tool_failed", Message: "Công cụ trả về trạng thái lỗi."}
+		result.Failure = &domain.ProviderFailure{Code: "tool_failed", Message: domain.ToolErrorGuidance(invocation.StatusCode)}
 	}
 	return result, nil
 }

@@ -49,7 +49,13 @@ func (s *resolvedToolSet) Execute(ctx context.Context, call domain.ToolCall) dom
 			failure := toolFailure(err)
 			return domain.ToolResult{CallID: call.ID, Name: call.Name, Content: failure.Message, IsError: true}
 		}
-		return domain.ToolResult{CallID: call.ID, Name: call.Name, Content: invocation.Body, IsError: invocation.IsError, Truncated: invocation.Truncated}
+		content, truncated := invocation.Body, invocation.Truncated
+		if invocation.IsError {
+			var trimmed bool
+			content, trimmed = domain.TruncateUTF8(domain.DescribeToolError(invocation.StatusCode, invocation.Body), domain.MaxToolResultBytes)
+			truncated = truncated || trimmed
+		}
+		return domain.ToolResult{CallID: call.ID, Name: call.Name, Content: content, IsError: invocation.IsError, Truncated: truncated, StatusCode: invocation.StatusCode}
 	}
 	session, err := s.mcpSession(ctx, entry)
 	if err != nil {
@@ -65,7 +71,7 @@ func (s *resolvedToolSet) Execute(ctx context.Context, call domain.ToolCall) dom
 	}
 	result.CallID = call.ID
 	result.Name = call.Name
-	result.Content, result.Truncated = domain.TruncateUTF8(result.Content, 16*1024)
+	result.Content, result.Truncated = domain.TruncateUTF8(result.Content, domain.MaxToolResultBytes)
 	return result
 }
 

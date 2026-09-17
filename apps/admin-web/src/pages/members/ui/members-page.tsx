@@ -34,6 +34,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  TableCard,
 } from "@/shared/ui";
 
 const roleLabels: Record<Member["role"], string> = {
@@ -54,13 +55,11 @@ function MemberList({
   onStatusChange: (member: Member) => void;
 }) {
   return (
-    <Card className="overflow-hidden" role="region" aria-label="Member list">
-      <div className="border-b bg-muted/30 px-5 py-4 sm:px-6">
-        <h2 className="font-semibold tracking-[-0.015em]">Workspace members</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {members.length} {members.length === 1 ? "person" : "people"} can access this workspace
-        </p>
-      </div>
+    <TableCard
+      label="Member list"
+      title="Workspace members"
+      description={`${members.length} ${members.length === 1 ? "person" : "people"} can access this workspace`}
+    >
       <div className="hidden grid-cols-[minmax(0,1fr)_7rem_11rem_7rem] gap-5 border-b px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground md:grid">
         <span>Member</span>
         <span>Status</span>
@@ -115,7 +114,7 @@ function MemberList({
           );
         })}
       </div>
-    </Card>
+    </TableCard>
   );
 }
 
@@ -166,10 +165,9 @@ export function MembersPage() {
 
   return (
     <main className="space-y-6">
-      <header className="flex justify-between">
-        <div><h1 className="text-2xl font-semibold">Members</h1><p className="text-muted-foreground">Manage who can view and update assistants.</p></div>
+      <div className="flex justify-end">
         <Button disabled={!canEdit} onClick={() => setShowForm(true)}><Plus />Add member</Button>
-      </header>
+      </div>
       {!canEdit ? <Card><CardContent className="pt-6 text-sm text-muted-foreground">Only administrators can edit members. Contact an administrator for help.</CardContent></Card> : null}
       {members.isError ? <Card><CardContent className="pt-6">Unable to load members. <Button variant="link" onClick={() => void members.refetch()}>Try again</Button></CardContent></Card> : null}
       <Dialog open={showForm} onOpenChange={setShowForm}>

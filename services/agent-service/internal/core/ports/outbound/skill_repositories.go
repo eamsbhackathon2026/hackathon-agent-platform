@@ -20,7 +20,9 @@ type SkillRepository interface {
 	ResolveAgentSkills(context.Context, uuid.UUID) ([]domain.Skill, error)
 }
 
-// SkillResolver composes immutable skill instructions for a run.
+// SkillResolver composes immutable skill instructions for a run. The resolved tool specs
+// come in because a skill names the tools it needs, and those references have to become
+// the names this run offers the model before the instructions reach the prompt.
 type SkillResolver interface {
-	ResolveSystemPrompt(context.Context, uuid.UUID, string) (string, error)
+	ResolveSystemPrompt(context.Context, uuid.UUID, string, []domain.ToolSpec) (string, error)
 }

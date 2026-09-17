@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/hex"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -23,11 +24,14 @@ const (
 
 // Skill is an immutable set of instructions imported into the shared library.
 type Skill struct {
-	ID                   uuid.UUID
-	Name, Description    string
-	SourceType           SkillSourceType
-	SourceFilename       string
-	Content, Checksum    string
+	ID                uuid.UUID
+	Name, Description string
+	SourceType        SkillSourceType
+	SourceFilename    string
+	Content, Checksum string
+	// ToolRefs are the tools the instructions name with a $ sigil, parsed once at
+	// import so both the run-time rewrite and the agent screen read the same list.
+	ToolRefs             []string
 	CreatedBy            uuid.UUID
 	CreatedAt, UpdatedAt time.Time
 }
@@ -57,6 +61,12 @@ func ValidateSkill(skill Skill) error {
 	}
 	if !utf8.ValidString(skill.Content) || strings.ContainsRune(skill.Content, 0) || strings.TrimSpace(skill.Content) == "" || len(skill.Content) > MaxSkillContentBytes {
 		return Invalid("file", "Nội dung skill phải là UTF-8 và không quá 100 KiB.")
+	}
+	if len(skill.ToolRefs) > MaxSkillToolRefs {
+		return Invalid("file", "Skill chỉ được khai báo tối đa "+strconv.Itoa(MaxSkillToolRefs)+" công cụ.")
+	}
+	if !skillToolRefsValid(skill.ToolRefs) {
+		return Invalid("file", "Skill khai báo công cụ với tên không hợp lệ.")
 	}
 	checksum, err := hex.DecodeString(skill.Checksum)
 	if err != nil || len(checksum) != 32 || strings.ToLower(skill.Checksum) != skill.Checksum {

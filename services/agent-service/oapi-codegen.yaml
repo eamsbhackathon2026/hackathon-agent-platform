@@ -18,5 +18,6 @@ output-options:
     - runs
     - sessions
     - webhooks
+    - reports
   skip-prune: true
   nullable-type: true

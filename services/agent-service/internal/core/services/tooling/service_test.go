@@ -464,3 +464,80 @@ func TestMergeHeadersUsesCaseInsensitiveOverride(t *testing.T) {
 		t.Fatalf("merged=%v", merged)
 	}
 }
+
+// The run engine reaches HTTP tools through Resolve/Execute, and that path used to drop
+// the status code, leaving the model with a bare "Internal Server Error" body that it
+// could not tell apart from an outage.
+func TestResolvedSetCarriesHTTPStatusIntoToolResult(t *testing.T) {
+	fixture := newServiceFixture(t)
+	tool, err := fixture.service.CreateTool(t.Context(), fixture.admin, validToolCommand())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = fixture.service.ReplaceAgentTools(t.Context(), fixture.admin, fixture.agentID, domain.AgentToolBindings{ToolIDs: []uuid.UUID{tool.ID}}); err != nil {
+		t.Fatal(err)
+	}
+	set, err := fixture.service.Resolve(t.Context(), fixture.agentID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := set.Close(); err != nil {
+			t.Errorf("đóng tool set: %v", err)
+		}
+	})
+	serverError := 500
+	fixture.http.invocation = domain.HTTPToolInvocation{StatusCode: &serverError, Body: "Internal Server Error", IsError: true}
+	failed := set.Execute(t.Context(), domain.ToolCall{ID: "boom", Name: "http_weather", Arguments: json.RawMessage(`{"city":"Huế"}`)})
+	if !failed.IsError || failed.StatusCode == nil || *failed.StatusCode != serverError {
+		t.Fatalf("mất status code: %+v", failed)
+	}
+	if !strings.Contains(failed.Content, "500") || !strings.Contains(failed.Content, "Internal Server Error") {
+		t.Fatalf("nội dung phải có cả mã lỗi lẫn phản hồi gốc: %q", failed.Content)
+	}
+
+	notFound := 404
+	fixture.http.invocation = domain.HTTPToolInvocation{StatusCode: &notFound, Body: `{"detail":"customer 999999 không tồn tại"}`, IsError: true}
+	rejected := set.Execute(t.Context(), domain.ToolCall{ID: "missing", Name: "http_weather", Arguments: json.RawMessage(`{"city":"Huế"}`)})
+	if !strings.Contains(rejected.Content, "tham số") || !strings.Contains(rejected.Content, "customer 999999") {
+		t.Fatalf("4xx phải chỉ mô hình sửa tham số và giữ chi tiết: %q", rejected.Content)
+	}
+
+	// A success must keep the body untouched: guidance belongs only on failures.
+	okStatus := 200
+	fixture.http.invocation = domain.HTTPToolInvocation{StatusCode: &okStatus, Body: `{"score":56}`}
+	succeeded := set.Execute(t.Context(), domain.ToolCall{ID: "fine", Name: "http_weather", Arguments: json.RawMessage(`{"city":"Huế"}`)})
+	if succeeded.IsError || succeeded.Content != `{"score":56}` || succeeded.StatusCode == nil || *succeeded.StatusCode != okStatus {
+		t.Fatalf("đường thành công bị đổi: %+v", succeeded)
+	}
+}
+
+// A verbose upstream error page must not gain budget just because we explain it.
+func TestResolvedSetKeepsExplainedErrorWithinResultBudget(t *testing.T) {
+	fixture := newServiceFixture(t)
+	tool, err := fixture.service.CreateTool(t.Context(), fixture.admin, validToolCommand())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = fixture.service.ReplaceAgentTools(t.Context(), fixture.admin, fixture.agentID, domain.AgentToolBindings{ToolIDs: []uuid.UUID{tool.ID}}); err != nil {
+		t.Fatal(err)
+	}
+	set, err := fixture.service.Resolve(t.Context(), fixture.agentID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := set.Close(); err != nil {
+			t.Errorf("đóng tool set: %v", err)
+		}
+	})
+	badGateway := 502
+	fixture.http.invocation = domain.HTTPToolInvocation{StatusCode: &badGateway, Body: strings.Repeat("x", domain.MaxToolResultBytes), IsError: true, Truncated: true}
+	result := set.Execute(t.Context(), domain.ToolCall{ID: "huge", Name: "http_weather", Arguments: json.RawMessage(`{"city":"Huế"}`)})
+	if len(result.Content) > domain.MaxToolResultBytes {
+		t.Fatalf("nội dung vượt ngân sách: %d byte", len(result.Content))
+	}
+	if !result.Truncated || !strings.Contains(result.Content, "502") {
+		t.Fatalf("mất cờ cắt ngắn hoặc mã lỗi: truncated=%v", result.Truncated)
+	}
+}

@@ -39,7 +39,7 @@ func (s *Service) EnqueueAsync(ctx context.Context, p domain.Principal, c inboun
 	if err != nil {
 		return domain.Run{}, err
 	}
-	if _, err = s.Skills.ResolveSystemPrompt(ctx, agent.ID, agent.SystemPrompt); err != nil {
+	if _, err = s.Skills.ResolveSystemPrompt(ctx, agent.ID, agent.SystemPrompt, toolset.Specs()); err != nil {
 		_ = toolset.Close()
 		return domain.Run{}, err
 	}
@@ -74,7 +74,7 @@ func (s *Service) execute(ctx context.Context, p domain.Principal, c inbound.Run
 	}
 	runID := uuid.Nil
 	defer func() { s.closeToolSetSafely(runID, toolset) }()
-	agent.SystemPrompt, err = s.Skills.ResolveSystemPrompt(ctx, agent.ID, agent.SystemPrompt)
+	agent.SystemPrompt, err = s.Skills.ResolveSystemPrompt(ctx, agent.ID, agent.SystemPrompt, toolset.Specs())
 	if err != nil {
 		return domain.Run{}, err
 	}
@@ -97,6 +97,13 @@ func (s *Service) executeStarted(ctx context.Context, agent domain.Agent, client
 		maxOutputTokens := domain.EffectiveMaxOutputTokens(agent)
 		agent.MaxOutputTokens = &maxOutputTokens
 	}
+	// Sync, stream and async all converge here, and this is the first point where the
+	// resolved prompt and the resolved tools are both in hand, so both are stated once for
+	// every run mode. The agent is a value copy, so this stays local to the run. The clock
+	// comes first because it is context; the capability boundary stays last so it reads as
+	// the final word on what this assistant may do.
+	agent.SystemPrompt = domain.AppendCurrentTime(agent.SystemPrompt, s.Clock.Now())
+	agent.SystemPrompt = domain.AppendCapabilityBoundary(agent.SystemPrompt, toolset.Specs())
 	timeoutCtx, stopTimeout := context.WithTimeout(ctx, time.Duration(agent.TimeoutSeconds)*time.Second)
 	defer stopTimeout()
 	execCtx, cancel := context.WithCancelCause(timeoutCtx)

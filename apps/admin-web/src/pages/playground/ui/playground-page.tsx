@@ -1,5 +1,4 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 
@@ -7,9 +6,9 @@ import { agentQueries } from "@/entities/agent";
 import { conversationKeys, conversationQueries, mergeConversationMessages, type ConversationMessage } from "@/entities/conversation";
 import { stopReasonToAction } from "@/entities/run";
 import { useStreamedRun } from "@/features/send-message-stream";
-import { StopRunButton } from "@/features/stop-run";
 import { useAuthSession } from "@/shared/api";
-import { Alert, AlertDescription, AlertTitle, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from "@/shared/ui";
+import { Alert, AlertDescription, AlertTitle, Button } from "@/shared/ui";
+import { ChatComposer } from "@/widgets/chat-composer";
 import { ChatThread } from "@/widgets/chat-thread";
 import { ConversationRail } from "@/widgets/conversation-rail";
 
@@ -131,24 +130,28 @@ export function PlaygroundPage() {
   }, [rememberContextFocus, requestContextChange]);
 
   return <>
-    <div className="flex min-h-[calc(100dvh-9rem)] flex-col gap-5 xl:h-[calc(100dvh-9rem)] xl:flex-row">
+    {/* A definite height, not a minimum: the transcript below scrolls inside this
+        column so the composer stays at the bottom and grows upward. Subtracts the
+        shell header plus the content padding above and below the column, with
+        room for the page description wrapping to a second line in the header —
+        leftover space only lifts the composer slightly, while a short column
+        would push it under the fold, which is what anchoring it prevents. */}
+    <div className="flex h-[calc(100dvh-9.5rem)] flex-col gap-5 md:h-[calc(100dvh-10.75rem)] xl:flex-row">
       <ConversationRail activeSessionId={sessionId} disabled={switching} activeDeleteDisabled={state.status === "streaming"} onNew={startNew} onSelect={selectConversation} onActiveDeleted={startNew} />
-      <div className="min-w-0 flex-1 space-y-5 xl:overflow-y-auto xl:pr-1">
-        <div><h1 className="text-2xl font-semibold">Playground</h1><p className="text-sm text-muted-foreground">Send a request and follow the response in real time.</p></div>
-        {warning ? <Alert><AlertTitle>Cancellation not confirmed</AlertTitle><AlertDescription>{warning}</AlertDescription></Alert> : null}
-        {agents.isError ? <Alert variant="destructive"><AlertTitle>Unable to load assistants</AlertTitle><AlertDescription>Check the connection and try again. <button className="font-medium underline" onClick={() => void agents.refetch()}>Try again</button></AlertDescription></Alert> : null}
-        {sessionUnavailable ? <Alert variant="destructive"><AlertTitle>This conversation can’t be continued in Playground</AlertTitle><AlertDescription>Open it in conversation history to review the transcript. <Link className="font-medium underline" to={`/conversations/${sessionId}`}>View conversation history</Link></AlertDescription></Alert> : null}
-        <div className="max-w-md"><Select value={agentId} disabled={switching} onValueChange={changeAgent}><SelectTrigger aria-label="Choose assistant" data-playground-context-trigger="assistant"><SelectValue placeholder="Choose a ready assistant" /></SelectTrigger><SelectContent>{agents.data?.map((agent) => <SelectItem key={agent.id} value={agent.id} disabled={!agent.ready}>{agent.name}{agent.ready ? "" : " — not ready"}</SelectItem>)}</SelectContent></Select>
-          {selectedAgent && !selectedAgent.ready ? <p className="mt-2 text-sm text-destructive">{selectedAgent.readiness_error?.message ?? "This assistant is not ready."} <Link className="underline" to={`/agents/${selectedAgent.id}`}>Edit assistant</Link></p> : null}
-        </div>
-        {history.isError ? <Alert variant="destructive"><AlertTitle>Unable to load previous messages</AlertTitle><AlertDescription>Reload them before continuing. <button className="font-medium underline" onClick={() => void history.refetch()}>Try again</button></AlertDescription></Alert> : null}
-        {history.hasNextPage ? <Button type="button" variant="ghost" disabled={history.isFetchingNextPage} onClick={() => void history.fetchNextPage()}>Load more messages</Button> : null}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5">
+        {warning ? <Alert className="shrink-0"><AlertTitle>Cancellation not confirmed</AlertTitle><AlertDescription>{warning}</AlertDescription></Alert> : null}
+        {agents.isError ? <Alert variant="destructive" className="shrink-0"><AlertTitle>Unable to load assistants</AlertTitle><AlertDescription>Check the connection and try again. <button className="font-medium underline" onClick={() => void agents.refetch()}>Try again</button></AlertDescription></Alert> : null}
+        {sessionUnavailable ? <Alert variant="destructive" className="shrink-0"><AlertTitle>This conversation can’t be continued in Playground</AlertTitle><AlertDescription>Open it in conversation history to review the transcript. <Link className="font-medium underline" to={`/conversations/${sessionId}`}>View conversation history</Link></AlertDescription></Alert> : null}
+        {history.isError ? <Alert variant="destructive" className="shrink-0"><AlertTitle>Unable to load previous messages</AlertTitle><AlertDescription>Reload them before continuing. <button className="font-medium underline" onClick={() => void history.refetch()}>Try again</button></AlertDescription></Alert> : null}
+        {history.hasNextPage ? <Button type="button" variant="ghost" className="shrink-0 self-start" disabled={history.isFetchingNextPage} onClick={() => void history.fetchNextPage()}>Load more messages</Button> : null}
         <ChatThread messages={messages} {...(completedIsPersisted ? {} : { stream: state })} />
-        {streamProblem ? <Alert variant="destructive"><AlertTitle>{streamProblem.title}</AlertTitle><AlertDescription>{state.errorMessage || streamProblem.description} {streamProblem.action?.to ? <Link className="font-medium underline" to={streamProblem.action.to}>{streamProblem.action.label}</Link> : streamProblem.action?.retry && lastMessage && canCompose ? <button type="button" className="font-medium underline" onClick={() => void send({ agentId, text: lastMessage, sessionId: sessionId || undefined })}>{streamProblem.action.label}</button> : null}</AlertDescription></Alert> : null}
-        {state.status === "lost" && state.runId ? <p className="rounded-xl border border-warning/30 bg-warning-soft p-3 text-sm text-warning">Connection lost — <Link className="font-medium underline" to={`/activity/${state.runId}`}>view result</Link></p> : null}
-        {state.runId && state.status !== "streaming" ? <Link className="inline-block text-sm font-medium text-primary underline" to={`/activity/${state.runId}`}>View processing steps</Link> : null}
-        <div className="flex items-end gap-2"><Textarea aria-label="Message" autoComplete="off" name="message" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={canCompose ? "Enter your request…" : "Choose an available conversation and assistant"} disabled={!canCompose || state.status === "streaming" || switching} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} />
-          {state.status === "streaming" ? <StopRunButton disabled={switching} onStop={() => void stopCurrentRun()} /> : <Button type="button" disabled={!canCompose || !draft.trim()} onClick={() => void submit()}><Send />Send</Button>}
+        {streamProblem ? <Alert variant="destructive" className="shrink-0"><AlertTitle>{streamProblem.title}</AlertTitle><AlertDescription>{state.errorMessage || streamProblem.description} {streamProblem.action?.to ? <Link className="font-medium underline" to={streamProblem.action.to}>{streamProblem.action.label}</Link> : streamProblem.action?.retry && lastMessage && canCompose ? <button type="button" className="font-medium underline" onClick={() => void send({ agentId, text: lastMessage, sessionId: sessionId || undefined })}>{streamProblem.action.label}</button> : null}</AlertDescription></Alert> : null}
+        {state.status === "lost" && state.runId ? <p className="shrink-0 rounded-xl border border-warning/30 bg-warning-soft p-3 text-sm text-warning">Connection lost — <Link className="font-medium underline" to={`/activity/${state.runId}`}>view result</Link></p> : null}
+        {state.runId && state.status !== "streaming" ? <Link className="inline-block shrink-0 text-sm font-medium text-primary underline" to={`/activity/${state.runId}`}>View processing steps</Link> : null}
+        <div className="shrink-0 space-y-2">
+          <p className="text-center text-xs text-muted-foreground">Assistants can make mistakes. Check important information.</p>
+          <ChatComposer value={draft} onChange={setDraft} onSubmit={() => void submit()} placeholder={canCompose ? "Enter your request…" : "Choose an available conversation and assistant"} disabled={!canCompose} busy={state.status === "streaming"} switching={switching} agents={agents.data ?? []} agentId={agentId} onAgentChange={changeAgent} onStop={() => void stopCurrentRun()} />
+          {selectedAgent && !selectedAgent.ready ? <p className="px-2 text-sm text-destructive">{selectedAgent.readiness_error?.message ?? "This assistant is not ready."} <Link className="underline" to={`/agents/${selectedAgent.id}`}>Edit assistant</Link></p> : null}
         </div>
       </div>
     </div>

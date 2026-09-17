@@ -155,25 +155,6 @@ select:focus-visible {
   margin-inline: auto;
 }
 
-.app-content > main > header {
-  align-items: flex-start;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.app-content > main > header h1 {
-  color: var(--foreground);
-  font-size: clamp(1.5rem, 2vw, 1.875rem);
-  line-height: 1.2;
-  letter-spacing: -0.025em;
-}
-
-.app-content > main > header h1 + p {
-  max-width: 46rem;
-  margin-top: 0.35rem;
-  line-height: 1.55;
-}
-
 .auth-shell-art {
   position: relative;
   isolation: isolate;

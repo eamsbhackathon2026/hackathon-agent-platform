@@ -14,6 +14,7 @@ import (
 	"agent-platform/services/agent-service/internal/config"
 	"agent-platform/services/agent-service/internal/core/ports/outbound"
 	"agent-platform/services/agent-service/internal/core/services/identity"
+	"agent-platform/services/agent-service/internal/core/services/reports"
 	"agent-platform/services/agent-service/internal/core/services/runs"
 	"agent-platform/services/agent-service/internal/platform/clock"
 	"agent-platform/services/agent-service/internal/platform/netguard"
@@ -93,6 +94,7 @@ func wireApplicationRuntime(cfg config.Config, pool *pgxpool.Pool, log *slog.Log
 		return application{}, err
 	}
 	handler.WebhookDeliveryHandler = webhookHandler
+	handler.ReportHandler = httpadapter.NewReportHandler(reports.NewService(store, realClock))
 	router, err := httpadapter.NewRouter(handler, httpadapter.RouterOptions{Resolver: service, Origins: cfg.CORSOrigins, Logger: log})
 	if err != nil {
 		return application{}, err

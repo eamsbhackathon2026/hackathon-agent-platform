@@ -34,6 +34,8 @@ tags:
   description: Thư viện hướng dẫn chuyên môn cho trợ lý
 - name: webhooks
   description: Gửi kết quả tới hệ thống khác
+- name: reports
+  description: Báo cáo tổng quan
 security:
 - bearerAuth: []
 paths:
@@ -2081,6 +2083,52 @@ paths:
       x-required-role: admin
       parameters:
       - $ref: '#/components/parameters/deliveryId'
+  /v1/reports/overview:
+    get:
+      operationId: GetOverviewReport
+      tags:
+      - reports
+      summary: Báo cáo tổng quan
+      description: 'Tổng hợp khối lượng sử dụng và độ tin cậy của toàn không gian làm việc trong một khoảng thời
+        gian. Khóa truy cập không gọi được endpoint này. Quyền JWT tối thiểu: admin.'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Thành công.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverviewReport'
+        default:
+          $ref: '#/components/responses/ProblemResponse'
+        '400':
+          $ref: '#/components/responses/ProblemResponse'
+        '401':
+          $ref: '#/components/responses/ProblemResponse'
+        '403':
+          $ref: '#/components/responses/ProblemResponse'
+      x-required-role: admin
+      parameters:
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date-time
+        description: 'Đầu khoảng thời gian theo created_at, gồm đầu. Mặc định bằng to trừ 7 ngày.'
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date-time
+        description: 'Cuối khoảng thời gian theo created_at, không gồm cuối. Mặc định là thời điểm hiện tại; from
+          phải nhỏ hơn to và khoảng không quá 90 ngày.'
+      - name: time_zone
+        in: query
+        schema:
+          type: string
+        description: 'Tên múi giờ IANA quyết định ranh giới ngày khi gom nhóm, ví dụ Asia/Ho_Chi_Minh. Mặc định
+          UTC.'
 components:
   securitySchemes:
     bearerAuth:
@@ -2975,6 +3023,14 @@ components:
         checksum:
           type: string
           pattern: '^[a-f0-9]{64}$'
+        tool_refs:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: string
+            pattern: '^[A-Za-z]([A-Za-z0-9_-]{0,62}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9_-]{0,62}[A-Za-z0-9])?)?$'
+          description: Công cụ skill khai báo bằng tiền tố $ trong phần hướng dẫn; dạng slug cho HTTP tool và server.tool cho MCP.
         created_by:
           type: string
           format: uuid
@@ -2991,6 +3047,7 @@ components:
       - source_type
       - source_filename
       - checksum
+      - tool_refs
       - created_by
       - created_at
       - updated_at
@@ -3714,6 +3771,224 @@ components:
         properties:
           session_id: {}
           session_key: {}
+    OverviewRange:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        time_zone:
+          type: string
+      required:
+      - from
+      - to
+      - time_zone
+      description: Khoảng thời gian và múi giờ mà máy chủ đã áp dụng sau khi điền giá trị mặc định.
+    OverviewTotals:
+      type: object
+      properties:
+        requests:
+          type: integer
+          format: int64
+          minimum: 0
+        succeeded:
+          type: integer
+          format: int64
+          minimum: 0
+        failed:
+          type: integer
+          format: int64
+          minimum: 0
+        cancelled:
+          type: integer
+          format: int64
+          minimum: 0
+        success_rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          nullable: true
+        sessions:
+          type: integer
+          format: int64
+          minimum: 0
+        avg_duration_ms:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+        p95_duration_ms:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+        processing_units:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - requests
+      - succeeded
+      - failed
+      - cancelled
+      - success_rate
+      - sessions
+      - avg_duration_ms
+      - p95_duration_ms
+      - processing_units
+      description: success_rate null khi không có yêu cầu nào; thời lượng null khi chưa đủ 20 lần xử lý đã kết thúc.
+    OverviewDailyPoint:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        playground:
+          type: integer
+          format: int64
+          minimum: 0
+        api:
+          type: integer
+          format: int64
+          minimum: 0
+        failed:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - date
+      - playground
+      - api
+      - failed
+      description: Mỗi ngày trong khoảng đều có một điểm, kể cả ngày không phát sinh yêu cầu.
+    OverviewAgentRow:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          format: uuid
+        agent_name:
+          type: string
+        requests:
+          type: integer
+          format: int64
+          minimum: 0
+        succeeded:
+          type: integer
+          format: int64
+          minimum: 0
+        failed:
+          type: integer
+          format: int64
+          minimum: 0
+        success_rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          nullable: true
+        p95_duration_ms:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+        processing_units:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - agent_id
+      - agent_name
+      - requests
+      - succeeded
+      - failed
+      - success_rate
+      - p95_duration_ms
+      - processing_units
+    OverviewErrorRow:
+      type: object
+      properties:
+        error_code:
+          $ref: '#/components/schemas/ProblemCode'
+        count:
+          type: integer
+          format: int64
+          minimum: 0
+        last_seen_at:
+          type: string
+          format: date-time
+        sample_run_id:
+          type: string
+          format: uuid
+      required:
+      - error_code
+      - count
+      - last_seen_at
+      - sample_run_id
+    OverviewToolRow:
+      type: object
+      properties:
+        tool_name:
+          type: string
+        calls:
+          type: integer
+          format: int64
+          minimum: 0
+        errors:
+          type: integer
+          format: int64
+          minimum: 0
+        p95_duration_ms:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+      required:
+      - tool_name
+      - calls
+      - errors
+      - p95_duration_ms
+      description: Gom theo tên công cụ đã ghi lại lúc chạy; công cụ đã đổi tên hoặc đã xóa vẫn giữ tên cũ.
+    OverviewReport:
+      type: object
+      properties:
+        range:
+          $ref: '#/components/schemas/OverviewRange'
+        totals:
+          $ref: '#/components/schemas/OverviewTotals'
+        daily:
+          type: array
+          items:
+            $ref: '#/components/schemas/OverviewDailyPoint'
+        top_agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/OverviewAgentRow'
+        top_errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/OverviewErrorRow'
+        top_tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/OverviewToolRow'
+        step_limit_hits:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - range
+      - totals
+      - daily
+      - top_agents
+      - top_errors
+      - top_tools
+      - step_limit_hits
+      description: Các bảng xếp hạng giới hạn 10 dòng, sắp giảm dần theo số lượng.
     RunStatus:
       type: string
       enum:

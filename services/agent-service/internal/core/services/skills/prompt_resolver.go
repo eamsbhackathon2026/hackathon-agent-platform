@@ -12,7 +12,7 @@ import (
 )
 
 // ResolveSystemPrompt snapshots bound skills once at run start and inlines their instructions.
-func (s *Service) ResolveSystemPrompt(ctx context.Context, agentID uuid.UUID, basePrompt string) (string, error) {
+func (s *Service) ResolveSystemPrompt(ctx context.Context, agentID uuid.UUID, basePrompt string, specs []domain.ToolSpec) (string, error) {
 	items, err := s.Skills.ResolveAgentSkills(ctx, agentID)
 	if err != nil || len(items) == 0 {
 		return basePrompt, err
@@ -25,6 +25,10 @@ func (s *Service) ResolveSystemPrompt(ctx context.Context, agentID uuid.UUID, ba
 		if bodyErr != nil {
 			return "", bodyErr
 		}
+		// Rewriting before the budget check keeps the ceiling measured against the text
+		// that actually reaches the prompt, since a run-time name is rarely the same
+		// length as the reference it replaces.
+		body = domain.RewriteSkillToolRefs(body, specs)
 		total += len(body)
 		if total > domain.MaxAgentSkillBytes {
 			return "", domain.Invalid("skill_ids", "Tổng nội dung skill của trợ lý không được vượt quá 100 KiB.")

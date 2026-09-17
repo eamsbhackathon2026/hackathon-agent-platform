@@ -1,8 +1,9 @@
-import { Navigate, createBrowserRouter } from "react-router";
+import { createBrowserRouter } from "react-router";
 
 import { AppShell } from "@/widgets/app-shell";
 import { Skeleton } from "@/shared/ui";
 
+import { HomeRedirect } from "./home-redirect";
 import { RequireAuth } from "./require-auth";
 import { RequireWorkspaceAdmin } from "./require-workspace-admin";
 
@@ -24,7 +25,7 @@ export const router = createBrowserRouter([
       {
         Component: AppShell,
         children: [
-          { index: true, element: <Navigate to="/agents" replace /> },
+          { index: true, Component: HomeRedirect },
           { path: "agents", ...lazyPage(() => import("@/pages/agents")) },
           { path: "agents/new", ...lazyPage(() => import("@/pages/agent-create")) },
           { path: "agents/:agentId", ...lazyPage(() => import("@/pages/agent-detail")) },
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
           {
             Component: RequireWorkspaceAdmin,
             children: [
+              { path: "overview", ...lazyPage(() => import("@/pages/overview")) },
               { path: "integrations", ...lazyPage(() => import("@/pages/integrations")) },
               { path: "members", ...lazyPage(() => import("@/pages/members")) },
             ],

@@ -7,7 +7,7 @@ import { conversationKeys, conversationQueries } from "@/entities/conversation";
 import { runQueries, stopReasonToAction, type RunStatus } from "@/entities/run";
 import { runStepQueries } from "@/entities/run-step";
 import { useAuthSession } from "@/shared/api";
-import { formatDate, formatDuration, problemToAction } from "@/shared/lib";
+import { formatDate, formatDuration, problemToAction, usePageHeader } from "@/shared/lib";
 import { Alert, AlertDescription, AlertTitle, Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from "@/shared/ui";
 import { AgentLoop } from "@/widgets/agent-loop";
 import { RunTimeline } from "@/widgets/run-timeline";
@@ -50,6 +50,8 @@ export function ActivityDetailPage() {
     wasActive.current = active;
   }, [active, queryClient, run.data?.session_id, runId, terminal]);
 
+  usePageHeader({ title: "Activity details", description: "Follow each model decision, tool action, and observation in order." });
+
   if (run.isPending) return <div className="space-y-5"><Skeleton className="h-5 w-28" /><Skeleton className="h-20 w-full" /><Skeleton className="h-32 w-full" /><Skeleton className="h-80 w-full" /></div>;
   if (run.isError || !run.data) {
     const action = problemToAction((run.error as { code?: string })?.code);
@@ -63,10 +65,10 @@ export function ActivityDetailPage() {
   const totalUsage = run.data.usage.input_tokens === null || run.data.usage.output_tokens === null ? null : run.data.usage.input_tokens + run.data.usage.output_tokens;
 
   return <div className="space-y-5">
-    <Link className="inline-flex min-h-11 items-center gap-2 text-sm font-medium hover:underline" to="/activity"><ArrowLeft className="size-4" />Activity</Link>
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><div className="flex flex-wrap items-center gap-3"><h1 className="text-2xl font-semibold">Activity details</h1><Badge variant={statusVariant(run.data.status)}>{statusLabel[run.data.status]}</Badge></div><p className="mt-1 text-sm text-muted-foreground">Follow each model decision, tool action, and observation in order.</p></div>
-      {active ? <Badge variant="warning" className="gap-1.5" aria-live="polite"><Radio className="size-3.5 animate-pulse" />Live updates</Badge> : null}
+    <div className="flex flex-wrap items-center gap-3">
+      <Link className="inline-flex min-h-11 items-center gap-2 text-sm font-medium hover:underline" to="/activity"><ArrowLeft className="size-4" />Activity</Link>
+      <Badge variant={statusVariant(run.data.status)}>{statusLabel[run.data.status]}</Badge>
+      {active ? <Badge variant="warning" className="ml-auto gap-1.5" aria-live="polite"><Radio className="size-3.5 animate-pulse" />Live updates</Badge> : null}
     </div>
 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
