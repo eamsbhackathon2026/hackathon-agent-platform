@@ -317,6 +317,46 @@ func (q *Queries) ListAgentToolIDs(ctx context.Context, agentID pgtype.UUID) ([]
 	return items, nil
 }
 
+const listAllTools = `-- name: ListAllTools :many
+SELECT id, slug, display_name, description, kind, method, url_template, params, public_headers, secret_headers_ciphertext, secret_header_names, timeout_seconds, created_at, updated_at, connection_id FROM tools ORDER BY slug
+`
+
+func (q *Queries) ListAllTools(ctx context.Context) ([]Tool, error) {
+	rows, err := q.db.Query(ctx, listAllTools)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Tool{}
+	for rows.Next() {
+		var i Tool
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.DisplayName,
+			&i.Description,
+			&i.Kind,
+			&i.Method,
+			&i.UrlTemplate,
+			&i.Params,
+			&i.PublicHeaders,
+			&i.SecretHeadersCiphertext,
+			&i.SecretHeaderNames,
+			&i.TimeoutSeconds,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ConnectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMCPServers = `-- name: ListMCPServers :many
 SELECT id, slug, display_name, url, secret_headers_ciphertext, secret_header_names, allowed_tools, tools_cache, status, last_error, last_synced_at, created_at, updated_at, revision FROM mcp_servers WHERE ($2::timestamptz IS NULL OR (created_at,id) < ($2::timestamptz, $3::uuid))
 ORDER BY created_at DESC,id DESC LIMIT $1

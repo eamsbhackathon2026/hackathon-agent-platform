@@ -22,6 +22,8 @@ WHERE deleted_at IS NULL
   AND (sqlc.narg('source')::text IS NULL OR source=sqlc.narg('source'))
   AND (sqlc.narg('owner_user_id')::uuid IS NULL OR created_by_user_id=sqlc.narg('owner_user_id'))
   AND (sqlc.narg('owner_api_key_id')::uuid IS NULL OR created_by_api_key_id=sqlc.narg('owner_api_key_id'))
+  AND (sqlc.narg('updated_from')::timestamptz IS NULL OR updated_at >= sqlc.narg('updated_from'))
+  AND (sqlc.narg('updated_to')::timestamptz IS NULL OR updated_at < sqlc.narg('updated_to'))
   AND (sqlc.narg('before_time')::timestamptz IS NULL OR (created_at,id) < (sqlc.narg('before_time'),sqlc.narg('before_id')::uuid))
 ORDER BY created_at DESC,id DESC LIMIT sqlc.arg('limit');
 
@@ -32,8 +34,46 @@ WHERE deleted_at IS NULL
   AND (sqlc.narg('source')::text IS NULL OR source=sqlc.narg('source'))
   AND (sqlc.narg('owner_user_id')::uuid IS NULL OR created_by_user_id=sqlc.narg('owner_user_id'))
   AND (sqlc.narg('owner_api_key_id')::uuid IS NULL OR created_by_api_key_id=sqlc.narg('owner_api_key_id'))
+  AND (sqlc.narg('updated_from')::timestamptz IS NULL OR updated_at >= sqlc.narg('updated_from'))
+  AND (sqlc.narg('updated_to')::timestamptz IS NULL OR updated_at < sqlc.narg('updated_to'))
   AND (sqlc.narg('before_updated_at')::timestamptz IS NULL OR (updated_at,id) < (sqlc.narg('before_updated_at'),sqlc.narg('before_id')::uuid))
 ORDER BY updated_at DESC,id DESC LIMIT sqlc.arg('limit');
+
+-- name: SessionRunSummaries :many
+SELECT DISTINCT ON (session_id)
+  session_id,
+  (count(*) OVER w)::bigint AS turn_count,
+  (count(*) FILTER (WHERE status='failed') OVER w)::bigint AS failed_turn_count,
+  id AS latest_run_id,
+  status AS latest_run_status,
+  COALESCE(sum(input_tokens) OVER w,0)::bigint AS input_tokens,
+  (count(input_tokens) OVER w)::bigint AS input_reported,
+  COALESCE(sum(output_tokens) OVER w,0)::bigint AS output_tokens,
+  (count(output_tokens) OVER w)::bigint AS output_reported,
+  COALESCE(sum((extract(epoch FROM finished_at-started_at)*1000)::bigint) FILTER (WHERE finished_at IS NOT NULL AND started_at IS NOT NULL) OVER w,0)::bigint AS processing_ms
+FROM runs
+WHERE session_id = ANY(sqlc.arg('session_ids')::uuid[])
+WINDOW w AS (PARTITION BY session_id)
+ORDER BY session_id, created_at DESC, id DESC;
+
+-- name: SessionFirstUserMessages :many
+-- LATERAL + LIMIT 1 walks messages_session_seq per conversation instead of reading every message.
+SELECT ids.session_id::uuid AS session_id, first.content::text AS content
+FROM unnest(sqlc.arg('session_ids')::uuid[]) AS ids(session_id)
+CROSS JOIN LATERAL (
+  SELECT left(m.content,200) AS content FROM messages m
+  WHERE m.session_id=ids.session_id AND m.role='user' AND btrim(m.content)<>''
+  ORDER BY m.seq, m.id LIMIT 1
+) AS first;
+
+-- name: SessionLastMessages :many
+SELECT ids.session_id::uuid AS session_id, last.role::text AS role, last.content::text AS content
+FROM unnest(sqlc.arg('session_ids')::uuid[]) AS ids(session_id)
+CROSS JOIN LATERAL (
+  SELECT m.role, left(m.content,200) AS content FROM messages m
+  WHERE m.session_id=ids.session_id AND m.role IN ('user','assistant') AND btrim(m.content)<>''
+  ORDER BY m.seq DESC, m.id DESC LIMIT 1
+) AS last;
 
 -- name: SessionHasActiveRuns :one
 SELECT EXISTS(SELECT 1 FROM runs WHERE session_id=$1 AND status IN ('queued','running'));
@@ -128,6 +168,7 @@ RETURNING *;
 -- name: ListRuns :many
 SELECT * FROM runs
 WHERE (sqlc.narg('agent_id')::uuid IS NULL OR agent_id=sqlc.narg('agent_id'))
+  AND (sqlc.narg('session_id')::uuid IS NULL OR session_id=sqlc.narg('session_id'))
   AND (sqlc.narg('status')::text IS NULL OR status=sqlc.narg('status'))
   AND (sqlc.narg('source')::text IS NULL OR source=sqlc.narg('source'))
   AND (sqlc.narg('from_time')::timestamptz IS NULL OR created_at >= sqlc.narg('from_time'))

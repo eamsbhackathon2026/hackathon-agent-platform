@@ -193,6 +193,9 @@ do job `deploy` tạo từ `VCR_USERNAME`/`VCR_PASSWORD`.
 
 ## Lỗi đã biết ở dịch vụ phụ thuộc
 
+> **Đã sửa ngày 2026-09-17** ở `msb-finance-platform` commit `afe6140`: cả hai endpoint nay
+> trả 404 kèm thông điệp đọc được thay vì 500. Phần dưới giữ lại để đối chiếu.
+
 Hai lỗi dưới đây nằm trong các dịch vụ `finance-demo` do nhóm khác vận hành, **không
 phải lỗi của Agent Platform**. Ghi lại vì chúng làm công cụ trả `500` và người vận hành
 dễ nghi nhầm sang cấu hình nền tảng. Cả hai đo được ngày 2026-09-16.

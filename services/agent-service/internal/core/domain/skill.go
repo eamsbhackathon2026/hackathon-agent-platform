@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/hex"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -34,6 +35,33 @@ type Skill struct {
 	ToolRefs             []string
 	CreatedBy            uuid.UUID
 	CreatedAt, UpdatedAt time.Time
+	// SourceFile is the uploaded file, set only while importing; readers never load it.
+	SourceFile []byte
+	// SourceFileAvailable reports whether the uploaded file was kept, which is false for
+	// skills imported before uploads were stored.
+	SourceFileAvailable bool
+}
+
+// SkillFile is a downloadable copy of a skill.
+type SkillFile struct {
+	Filename string
+	Content  []byte
+}
+
+// SkillDownloadFilename names the file a skill downloads as. The uploaded name is kept
+// when the upload itself is returned or was already Markdown; otherwise the stored
+// SKILL.md is named after the upload's stem so a re-import falls back to the same name.
+func SkillDownloadFilename(skill Skill) string {
+	source := strings.TrimSpace(skill.SourceFilename)
+	extension := strings.ToLower(path.Ext(source))
+	if skill.SourceFileAvailable || skill.SourceType == SkillSourceMarkdown && (extension == ".md" || extension == ".markdown") {
+		return source
+	}
+	stem := strings.TrimSuffix(source, path.Ext(source))
+	if stem == "" {
+		stem = strings.TrimSpace(skill.Name)
+	}
+	return stem + ".md"
 }
 
 // AgentSkillBindings replaces all skills enabled for one active assistant.

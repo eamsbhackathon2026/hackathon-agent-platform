@@ -6,7 +6,7 @@ import remarkGfm from "remark-gfm";
 import type { ConversationMessage, StreamState } from "@/entities/conversation";
 import { Badge, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/ui";
 
-function Markdown({ children }: { children: string }) {
+export function ChatMarkdown({ children }: { children: string }) {
   return <div className="min-w-0 break-words [overflow-wrap:anywhere] [&_pre]:max-w-full [&_pre]:overflow-x-auto">
     <ReactMarkdown skipHtml remarkPlugins={[remarkGfm]} components={{
       a: ({ node, ...props }) => { void node; return <a {...props} className="underline" target="_blank" rel="noopener noreferrer" />; },
@@ -28,7 +28,7 @@ function MessageBubble({ message }: { message: ConversationMessage }) {
   return (
     <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
       <div className={`min-w-0 max-w-[85%] break-words rounded-2xl px-4 py-3 text-sm [overflow-wrap:anywhere] ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-        {message.role === "assistant" ? <Markdown>{message.content}</Markdown> : <p className="whitespace-pre-wrap">{message.content}</p>}
+        {message.role === "assistant" ? <ChatMarkdown>{message.content}</ChatMarkdown> : <p className="whitespace-pre-wrap">{message.content}</p>}
       </div>
     </div>
   );
@@ -69,7 +69,7 @@ export function ChatThread({ messages, stream }: { messages: ConversationMessage
 
         {stream && showStream ? (
           <div className="min-w-0 max-w-[85%] break-words space-y-3 rounded-2xl bg-muted px-4 py-3 text-sm [overflow-wrap:anywhere]">
-            {stream.text ? <Markdown>{stream.text}</Markdown> : <span className="flex items-center gap-2 text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Preparing a response…</span>}
+            {stream.text ? <ChatMarkdown>{stream.text}</ChatMarkdown> : <span className="flex items-center gap-2 text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Preparing a response…</span>}
             {stream.steps.map((step) => (
               <Badge key={step.callId} variant="outline" className="mr-2 gap-1">
                 {step.status === "running" ? <LoaderCircle className="size-3 animate-spin" /> : step.status === "succeeded" ? <CheckCircle2 className="size-3" /> : <XCircle className="size-3" />}

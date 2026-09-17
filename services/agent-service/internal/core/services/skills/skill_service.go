@@ -9,7 +9,7 @@ import (
 	"agent-platform/services/agent-service/internal/core/ports/inbound"
 )
 
-// ListSkills returns one page without loading archive data because only SKILL.md is persisted.
+// ListSkills returns one page without loading the uploaded files.
 func (s *Service) ListSkills(ctx context.Context, principal domain.Principal, request inbound.PageRequest) (inbound.SkillPage, error) {
 	if err := domain.Authorize(principal, domain.ActionResourcesRead, nil); err != nil {
 		return inbound.SkillPage{}, err
@@ -48,6 +48,7 @@ func (s *Service) ImportSkill(ctx context.Context, principal domain.Principal, c
 	now := s.Clock.Now()
 	skill.CreatedAt, skill.UpdatedAt = now, now
 	err = s.mutate(ctx, func(ctx context.Context) error { return s.Skills.CreateSkill(ctx, skill) })
+	skill.SourceFileAvailable = len(skill.SourceFile) > 0
 	return skill, err
 }
 
@@ -57,6 +58,23 @@ func (s *Service) GetSkill(ctx context.Context, principal domain.Principal, id u
 		return domain.Skill{}, err
 	}
 	return s.Skills.GetSkill(ctx, id)
+}
+
+// DownloadSkill returns the uploaded file, or the stored SKILL.md for skills imported
+// before uploads were kept.
+func (s *Service) DownloadSkill(ctx context.Context, principal domain.Principal, id uuid.UUID) (domain.SkillFile, error) {
+	skill, err := s.GetSkill(ctx, principal, id)
+	if err != nil {
+		return domain.SkillFile{}, err
+	}
+	content := []byte(skill.Content)
+	if skill.SourceFileAvailable {
+		// A skill deleted in between leaves nothing to return, which ErrNotFound reports.
+		if content, err = s.Skills.GetSkillSourceFile(ctx, id); err != nil {
+			return domain.SkillFile{}, err
+		}
+	}
+	return domain.SkillFile{Filename: domain.SkillDownloadFilename(skill), Content: content}, nil
 }
 
 // DeleteSkill removes the package and lets database cascades remove bindings.

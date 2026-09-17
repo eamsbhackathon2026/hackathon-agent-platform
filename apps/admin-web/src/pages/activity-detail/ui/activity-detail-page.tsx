@@ -4,7 +4,7 @@ import { ArrowLeft, Clock3, Gauge, GitBranch, Radio } from "lucide-react";
 import { Link, useParams } from "react-router";
 
 import { conversationKeys, conversationQueries } from "@/entities/conversation";
-import { runQueries, stopReasonToAction, type RunStatus } from "@/entities/run";
+import { runQueries, runStatusLabel as statusLabel, runStatusVariant as statusVariant, stopReasonToAction } from "@/entities/run";
 import { runStepQueries } from "@/entities/run-step";
 import { useAuthSession } from "@/shared/api";
 import { formatDate, formatDuration, problemToAction, usePageHeader } from "@/shared/lib";
@@ -12,15 +12,6 @@ import { Alert, AlertDescription, AlertTitle, Badge, Card, CardContent, CardDesc
 import { AgentLoop } from "@/widgets/agent-loop";
 import { RunTimeline } from "@/widgets/run-timeline";
 import { WebhookDeliveryPanel } from "@/widgets/webhook-delivery-panel";
-
-const statusLabel: Record<RunStatus, string> = { queued: "Queued", running: "Processing", succeeded: "Completed", failed: "Failed", cancelled: "Stopped" };
-
-function statusVariant(status: RunStatus) {
-  if (status === "succeeded") return "success" as const;
-  if (status === "failed") return "destructive" as const;
-  if (status === "queued" || status === "running") return "warning" as const;
-  return "outline" as const;
-}
 
 export function ActivityDetailPage() {
   const { runId = "" } = useParams();

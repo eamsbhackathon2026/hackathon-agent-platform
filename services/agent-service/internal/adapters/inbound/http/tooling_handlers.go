@@ -8,9 +8,10 @@ type ToolingHandler struct {
 	tools       inbound.ToolUseCase
 	servers     inbound.MCPServerUseCase
 	bindings    inbound.AgentToolBindingUseCase
+	transfers   inbound.ToolTransferUseCase
 }
 
 // NewToolingHandler creates the strict HTTP adapter for all tooling use cases.
-func NewToolingHandler(connections inbound.APIConnectionUseCase, tools inbound.ToolUseCase, servers inbound.MCPServerUseCase, bindings inbound.AgentToolBindingUseCase) *ToolingHandler {
-	return &ToolingHandler{connections: connections, tools: tools, servers: servers, bindings: bindings}
+func NewToolingHandler(connections inbound.APIConnectionUseCase, tools inbound.ToolUseCase, servers inbound.MCPServerUseCase, bindings inbound.AgentToolBindingUseCase, transfers inbound.ToolTransferUseCase) *ToolingHandler {
+	return &ToolingHandler{connections: connections, tools: tools, servers: servers, bindings: bindings, transfers: transfers}
 }

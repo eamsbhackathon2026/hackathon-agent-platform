@@ -36,11 +36,14 @@ func (s *Service) ListSessions(ctx context.Context, p domain.Principal, request 
 	if request.Source != nil && *request.Source != domain.RunSourceAPI && *request.Source != domain.RunSourcePlayground {
 		return page, domain.Invalid("source", "Nguồn hội thoại không hợp lệ.")
 	}
+	if request.From != nil && request.To != nil && !request.From.Before(*request.To) {
+		return page, domain.Invalid("from", "Thời điểm bắt đầu phải trước thời điểm kết thúc.")
+	}
 	sort := request.Sort
 	if sort == "" {
 		sort = inbound.SessionSortCreatedAt
 	}
-	filter := outbound.SessionListOptions{AgentID: request.AgentID, Source: request.Source}
+	filter := outbound.SessionListOptions{AgentID: request.AgentID, Source: request.Source, UpdatedFrom: request.From, UpdatedTo: request.To}
 	switch sort {
 	case inbound.SessionSortCreatedAt:
 		options, pageErr := descendingPage(request.PageRequest)
@@ -72,6 +75,14 @@ func (s *Service) ListSessions(ctx context.Context, p domain.Principal, request 
 		} else {
 			page.NextCursor = encodeCursor(domain.PageCursor{CreatedAt: last.CreatedAt, ID: last.ID})
 		}
+	}
+	ids := make([]uuid.UUID, len(page.Items))
+	for i, session := range page.Items {
+		ids[i] = session.ID
+	}
+	page.Summaries, err = s.Sessions.SummarizeSessions(ctx, ids)
+	if err != nil {
+		return page, err
 	}
 	return page, nil
 }

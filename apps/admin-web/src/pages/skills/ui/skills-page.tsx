@@ -5,7 +5,8 @@ import { Link } from "react-router";
 import { toast } from "sonner";
 
 import { skillQueries, type SkillSummary } from "@/entities/skill";
-import { deleteSkill } from "@/features/skill-delete";
+import { DeleteSkillDialog } from "@/features/skill-delete";
+import { DownloadSkillButton, onlyInstructionsKept } from "@/features/skill-download";
 import { importSkill } from "@/features/skill-import";
 import { useAuthSession } from "@/shared/api";
 import { formatDate } from "@/shared/lib";
@@ -16,6 +17,7 @@ export function SkillsPage() {
   const client = useQueryClient();
   const canEdit = useAuthSession().user?.role !== "member";
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<SkillSummary | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const detail = useQuery({ ...skillQueries.detail(selectedId ?? ""), enabled: Boolean(selectedId) });
@@ -42,16 +44,9 @@ export function SkillsPage() {
     }
   };
 
-  const remove = async (skill: SkillSummary) => {
-    if (!window.confirm(`Delete skill “${skill.name}”? It will be removed from every assistant.`)) return;
-    try {
-      await deleteSkill(skill.id);
-      await client.invalidateQueries({ queryKey: ["skills"] });
-      if (selectedId === skill.id) setSelectedId(null);
-      toast.success("Skill deleted");
-    } catch (error) {
-      toast.error("Unable to delete skill", { description: errorMessage(error, "Try again.") });
-    }
+  const afterDelete = async (skill: SkillSummary) => {
+    await client.invalidateQueries({ queryKey: ["skills"] });
+    if (selectedId === skill.id) setSelectedId(null);
   };
 
   return <main className="space-y-6">
@@ -65,10 +60,12 @@ export function SkillsPage() {
     {skills.isLoading ? <p className="text-sm text-muted-foreground">Loading skills…</p> : null}
     {skills.isSuccess && items.length === 0 ? <Card><CardHeader><LibraryBig /><CardTitle>No skills yet</CardTitle><CardDescription>{canEdit ? "Add a Markdown file or ZIP package to build your shared instruction library." : "An administrator has not added any skills yet."}</CardDescription></CardHeader></Card> : null}
 
-    <div className="grid gap-4 lg:grid-cols-2">{items.map((skill) => <Card key={skill.id}><CardHeader><div className="flex items-start justify-between gap-3"><div className="flex min-w-0 gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent">{skill.source_type === "zip" ? <Archive className="size-5" /> : <FileText className="size-5" />}</span><div className="min-w-0"><CardTitle className="truncate">{skill.name}</CardTitle><CardDescription className="mt-1 line-clamp-2">{skill.description || "No description provided."}</CardDescription></div></div><Badge variant="secondary">{skill.source_type === "zip" ? "ZIP" : "Markdown"}</Badge></div></CardHeader><CardContent className="space-y-4"><div className="grid gap-1 text-xs text-muted-foreground"><span className="truncate">Source: {skill.source_filename}</span><span>Added {formatDate(skill.created_at)}</span></div><div className="flex flex-wrap gap-2"><Button aria-label={`View instructions for ${skill.name}`} variant="outline" onClick={() => setSelectedId(skill.id)}>View instructions</Button>{canEdit ? <Button aria-label={`Delete ${skill.name}`} variant="ghost" className="text-destructive hover:text-destructive" onClick={() => void remove(skill)}><Trash2 />Delete</Button> : null}</div></CardContent></Card>)}</div>
+    <div className="grid gap-4 lg:grid-cols-2">{items.map((skill) => <Card key={skill.id}><CardHeader><div className="flex items-start justify-between gap-3"><div className="flex min-w-0 gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent">{skill.source_type === "zip" ? <Archive className="size-5" /> : <FileText className="size-5" />}</span><div className="min-w-0"><CardTitle className="truncate">{skill.name}</CardTitle><CardDescription className="mt-1 line-clamp-2">{skill.description || "No description provided."}</CardDescription></div></div><Badge variant="secondary">{skill.source_type === "zip" ? "ZIP" : "Markdown"}</Badge></div></CardHeader><CardContent className="space-y-4"><div className="grid gap-1 text-xs text-muted-foreground"><span className="truncate">Source: {skill.source_filename}</span><span>Added {formatDate(skill.created_at)}</span></div><div className="flex flex-wrap gap-2"><Button aria-label={`View instructions for ${skill.name}`} variant="outline" onClick={() => setSelectedId(skill.id)}>View instructions</Button><DownloadSkillButton skill={skill} />{canEdit ? <Button aria-label={`Delete ${skill.name}`} variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setPendingDelete(skill)}><Trash2 />Delete</Button> : null}</div></CardContent></Card>)}</div>
     {skills.hasNextPage ? <div className="flex justify-center"><Button disabled={skills.isFetchingNextPage} variant="outline" onClick={() => void skills.fetchNextPage()}>{skills.isFetchingNextPage ? "Loading more…" : "Load more skills"}</Button></div> : null}
 
-    <Dialog open={Boolean(selectedId)} onOpenChange={(open) => { if (!open) setSelectedId(null); }}><DialogContent className="max-h-[86vh] max-w-3xl"><DialogHeader><DialogTitle>{detail.data?.name ?? "Skill instructions"}</DialogTitle><DialogDescription>{detail.data ? `${detail.data.source_filename} · checksum ${detail.data.checksum.slice(0, 12)}…` : "Review the canonical Markdown that will be provided to assistants."}</DialogDescription></DialogHeader>{detail.isLoading ? <p>Loading instructions…</p> : detail.isError ? <p className="text-sm text-destructive">Unable to load these instructions. <Button variant="link" onClick={() => void detail.refetch()}>Try again</Button></p> : <pre className="max-h-[62vh] overflow-auto whitespace-pre-wrap rounded-xl border bg-muted/40 p-4 text-sm leading-6">{detail.data?.content}</pre>}</DialogContent></Dialog>
+    <DeleteSkillDialog skill={pendingDelete} onOpenChange={(open) => { if (!open) setPendingDelete(null); }} onDeleted={() => { const skill = pendingDelete; if (skill) void afterDelete(skill); }} />
+
+    <Dialog open={Boolean(selectedId)} onOpenChange={(open) => { if (!open) setSelectedId(null); }}><DialogContent className="max-h-[86vh] max-w-3xl"><DialogHeader><DialogTitle>{detail.data?.name ?? "Skill instructions"}</DialogTitle><DialogDescription>{detail.data ? `${detail.data.source_filename} · checksum ${detail.data.checksum.slice(0, 12)}…` : "Review the canonical Markdown that will be provided to assistants."}</DialogDescription></DialogHeader>{detail.isLoading ? <p>Loading instructions…</p> : detail.isError ? <p className="text-sm text-destructive">Unable to load these instructions. <Button variant="link" onClick={() => void detail.refetch()}>Try again</Button></p> : <>{detail.data && onlyInstructionsKept(detail.data) ? <p className="text-xs text-muted-foreground">This skill was added before full packages were kept, so Download saves only these SKILL.md instructions.{canEdit ? " To keep the whole package, delete this skill, add the ZIP again, then turn the skill back on for each assistant that used it." : ""}</p> : null}<pre className="max-h-[56vh] overflow-auto whitespace-pre-wrap rounded-xl border bg-muted/40 p-4 text-sm leading-6">{detail.data?.content}</pre>{detail.data ? <div className="flex justify-end"><DownloadSkillButton skill={detail.data} /></div> : null}</>}</DialogContent></Dialog>
   </main>;
 }
 

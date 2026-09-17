@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -16,12 +17,13 @@ type sessionQuerySpy struct {
 	principal     domain.Principal
 	request       inbound.SessionListRequest
 	messageFilter inbound.MessageListRequest
+	page          inbound.SessionPage
 }
 
 func (s *sessionQuerySpy) ListSessions(_ context.Context, principal domain.Principal, request inbound.SessionListRequest) (inbound.SessionPage, error) {
 	s.principal = principal
 	s.request = request
-	return inbound.SessionPage{}, nil
+	return s.page, nil
 }
 
 func (s *sessionQuerySpy) ListSessionMessages(_ context.Context, principal domain.Principal, _ uuid.UUID, request inbound.MessageListRequest) (inbound.MessagePage, error) {
@@ -73,5 +75,38 @@ func TestSessionHandlerMapsRunMessageFilter(t *testing.T) {
 	}
 	if spy.principal.UserID != principal.UserID || spy.messageFilter.Limit != limit || spy.messageFilter.Cursor != cursor || spy.messageFilter.RunID == nil || *spy.messageFilter.RunID != runID {
 		t.Fatalf("principal=%+v filter=%+v", spy.principal, spy.messageFilter)
+	}
+}
+
+func TestSessionHandlerMapsActivityWindowAndSummary(t *testing.T) {
+	sessionID, runID := uuid.New(), uuid.New()
+	status, role, preview, input := domain.RunFailed, "assistant", "Latest answer", 7
+	spy := &sessionQuerySpy{page: inbound.SessionPage{
+		Items:     []domain.Session{{ID: sessionID, AgentID: uuid.New(), Source: domain.RunSourceAPI}},
+		Summaries: map[uuid.UUID]domain.SessionSummary{sessionID: {TurnCount: 3, FailedTurnCount: 1, LatestRunID: &runID, LatestRunStatus: &status, Usage: domain.TokenUsage{InputTokens: &input}, ProcessingMS: 900, LastMessage: &preview, LastMessageRole: &role}},
+	}}
+	handler := NewSessionHandler(spy)
+	principal := domain.Principal{Kind: domain.PrincipalUser, UserID: uuid.New(), Role: domain.RoleOwner}
+	ctx := context.WithValue(t.Context(), requestContextKey{}, requestInfo{principal: principal})
+	from, to := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC)
+
+	response, err := handler.ListSessions(ctx, gen.ListSessionsRequestObject{Params: gen.ListSessionsParams{From: &from, To: &to}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spy.request.From == nil || !spy.request.From.Equal(from) || spy.request.To == nil || !spy.request.To.Equal(to) {
+		t.Fatalf("request=%+v", spy.request)
+	}
+	page, ok := response.(gen.ListSessions200JSONResponse)
+	if !ok || len(page.Items) != 1 || page.Items[0].Summary == nil {
+		t.Fatalf("response=%+v", response)
+	}
+	summary := page.Items[0].Summary
+	gotStatus, _ := summary.LatestRunStatus.Get()
+	gotRole, _ := summary.LastMessageRole.Get()
+	gotRun, _ := summary.LatestRunId.Get()
+	gotInput, _ := summary.Usage.InputTokens.Get()
+	if summary.TurnCount != 3 || summary.FailedTurnCount != 1 || gotStatus != gen.SessionSummaryLatestRunStatus("failed") || gotRole != gen.SessionSummaryLastMessageRole("assistant") || gotRun != runID || gotInput != 7 || !summary.Usage.OutputTokens.IsNull() || !summary.FirstMessage.IsNull() || summary.ProcessingMs != 900 {
+		t.Fatalf("summary=%+v", summary)
 	}
 }

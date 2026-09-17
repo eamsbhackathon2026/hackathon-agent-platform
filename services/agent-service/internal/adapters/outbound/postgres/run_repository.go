@@ -51,7 +51,7 @@ func (s *Store) StartQueuedRun(ctx context.Context, id uuid.UUID, at time.Time) 
 // ListRuns applies ownership, public filters and descending keyset pagination.
 func (s *Store) ListRuns(ctx context.Context, p outbound.RunListOptions) ([]domain.Run, error) {
 	limit, before, beforeID := page(domain.PageOptions{Limit: p.Limit, Before: p.Before})
-	rows, err := s.queries(ctx).ListRuns(ctx, sqlcgen.ListRunsParams{AgentID: optionalID(p.AgentID), Status: textValue(p.Status), Source: textValue(p.Source), FromTime: optionalTime(p.From), ToTime: optionalTime(p.To), OwnerUserID: optionalID(p.OwnerUserID), OwnerApiKeyID: optionalID(p.OwnerAPIKeyID), BeforeTime: before, BeforeID: beforeID, Limit: limit})
+	rows, err := s.queries(ctx).ListRuns(ctx, sqlcgen.ListRunsParams{AgentID: optionalID(p.AgentID), SessionID: optionalID(p.SessionID), Status: textValue(p.Status), Source: textValue(p.Source), FromTime: optionalTime(p.From), ToTime: optionalTime(p.To), OwnerUserID: optionalID(p.OwnerUserID), OwnerApiKeyID: optionalID(p.OwnerAPIKeyID), BeforeTime: before, BeforeID: beforeID, Limit: limit})
 	if err != nil {
 		return nil, mapError(err)
 	}

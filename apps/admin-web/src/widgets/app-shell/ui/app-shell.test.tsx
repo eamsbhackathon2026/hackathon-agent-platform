@@ -42,7 +42,7 @@ describe("AppShell", () => {
     expect(screen.getByRole("menuitem", { name: "Sign out" })).toBeInTheDocument();
   });
 
-  it("hides conversation history from navigation but keeps its route title", () => {
+  it("lists conversation history in navigation and titles its detail route", () => {
     setAuthSession("token", user);
     render(
       <MemoryRouter initialEntries={["/conversations/session-1"]}>
@@ -54,7 +54,7 @@ describe("AppShell", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.queryByRole("link", { name: "Conversation History" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Conversation History" }).length).toBeGreaterThan(0);
     expect(within(screen.getByRole("banner")).getByRole("heading", { name: "Conversation History" })).toBeInTheDocument();
     expect(screen.getByText("Conversation detail")).toBeInTheDocument();
   });
@@ -64,7 +64,7 @@ describe("AppShell", () => {
     renderAt("/agents", <p>Assistant list</p>);
 
     const banner = within(screen.getByRole("banner"));
-    expect(banner.getByRole("heading", { name: "AI Assistants" })).toBeInTheDocument();
+    expect(banner.getByRole("heading", { name: "Agent Hub" })).toBeInTheDocument();
     expect(banner.getByText("Create an assistant for each workflow and test it when it is ready.")).toBeInTheDocument();
   });
 
@@ -79,7 +79,7 @@ describe("AppShell", () => {
     const banner = within(screen.getByRole("banner"));
     expect(banner.getByRole("heading", { name: "Support bot" })).toBeInTheDocument();
     expect(banner.getByText("Update how this assistant works.")).toBeInTheDocument();
-    expect(banner.queryByRole("heading", { name: "AI Assistants" })).not.toBeInTheDocument();
+    expect(banner.queryByRole("heading", { name: "Agent Hub" })).not.toBeInTheDocument();
   });
 });
 

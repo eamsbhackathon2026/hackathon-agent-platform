@@ -30,7 +30,7 @@ describe("ToolsPage", () => {
   });
   it("keeps configuration read-only for a member", async () => {
     setAuthSession("token", { ...user, role: "member" }); handlers("GET"); renderPage();
-    expect(await screen.findByText("Only administrators can edit tools. Contact an administrator for help.")).toBeInTheDocument(); expect(screen.queryByRole("button", { name: "Test" })).not.toBeInTheDocument(); expect(screen.queryByRole("link", { name: "Create tool" })).not.toBeInTheDocument(); fireEvent.mouseDown(screen.getByRole("tab", { name: "API connections" }), { button: 0 }); expect(screen.queryByRole("button", { name: "Connect API" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Only administrators can edit tools. Contact an administrator for help.")).toBeInTheDocument(); expect(screen.queryByRole("button", { name: "Test" })).not.toBeInTheDocument(); expect(screen.queryByRole("link", { name: "Create tool" })).not.toBeInTheDocument(); expect(screen.getByRole("button", { name: "Export tools" })).toBeInTheDocument(); expect(screen.queryByRole("button", { name: "Import tools" })).not.toBeInTheDocument(); fireEvent.mouseDown(screen.getByRole("tab", { name: "API connections" }), { button: 0 }); expect(screen.queryByRole("button", { name: "Connect API" })).not.toBeInTheDocument();
     expect(await screen.findByText("Commerce API")).toBeInTheDocument();
     expect(screen.getByText("Public headers:").parentElement).toHaveTextContent("Public headers: None");
     expect(screen.getByText("Secret headers:").parentElement).toHaveTextContent("Secret headers: Authorization");

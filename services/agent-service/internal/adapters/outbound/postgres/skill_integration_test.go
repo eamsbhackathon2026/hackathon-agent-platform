@@ -83,3 +83,45 @@ func TestSkillRepositoryRoundTripBindingsAndCascade(t *testing.T) {
 		t.Fatal("lock outside transaction succeeded")
 	}
 }
+
+func TestSkillSourceFileIsKeptApartAndRemovedWithTheSkill(t *testing.T) {
+	store, provider, agent := catalogFixture(t)
+	ctx := context.Background()
+	if err := store.CreateProvider(ctx, provider); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateAgent(ctx, agent); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	checksum := strings.Repeat("0", 64)
+	withFile := domain.Skill{ID: uuid.New(), Name: "Packaged", SourceType: domain.SkillSourceZIP, SourceFilename: "pack.zip", SourceFile: []byte("PK\x03\x04zip"), Content: "# Packaged", Checksum: checksum, ToolRefs: []string{}, CreatedBy: agent.CreatedBy, CreatedAt: now, UpdatedAt: now}
+	legacy := domain.Skill{ID: uuid.New(), Name: "Legacy", SourceType: domain.SkillSourceZIP, SourceFilename: "legacy.zip", Content: "# Legacy", Checksum: checksum, ToolRefs: []string{}, CreatedBy: agent.CreatedBy, CreatedAt: now.Add(-time.Second), UpdatedAt: now}
+	for _, skill := range []domain.Skill{withFile, legacy} {
+		if err := store.WithinTx(ctx, func(ctx context.Context) error { return store.CreateSkill(ctx, skill) }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := store.GetSkill(ctx, withFile.ID)
+	if err != nil || !got.SourceFileAvailable || got.SourceFile != nil {
+		t.Fatalf("with file=%+v err=%v", got, err)
+	}
+	content, err := store.GetSkillSourceFile(ctx, withFile.ID)
+	if err != nil || string(content) != string(withFile.SourceFile) {
+		t.Fatalf("content=%q err=%v", content, err)
+	}
+	items, err := store.ListSkills(ctx, domain.PageOptions{Limit: 10})
+	if err != nil || len(items) != 2 || !items[0].SourceFileAvailable || items[1].SourceFileAvailable {
+		t.Fatalf("items=%+v err=%v", items, err)
+	}
+	if _, err = store.GetSkillSourceFile(ctx, legacy.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("legacy source err=%v", err)
+	}
+	if err = store.DeleteSkill(ctx, withFile.ID); err != nil {
+		t.Fatal(err)
+	}
+	var remaining int
+	if err = store.pool.QueryRow(ctx, `SELECT count(*) FROM skill_source_files WHERE skill_id=$1`, withFile.ID).Scan(&remaining); err != nil || remaining != 0 {
+		t.Fatalf("remaining=%d err=%v", remaining, err)
+	}
+}

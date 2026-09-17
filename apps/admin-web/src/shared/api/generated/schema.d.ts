@@ -400,6 +400,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/skills/{skillId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tải file skill
+         * @description Trả đúng file đã upload (.md hoặc .zip). Skill import trước khi hệ thống lưu file gốc trả nội dung SKILL.md đã lưu dưới dạng file .md. Quyền JWT tối thiểu: member.
+         */
+        get: operations["DownloadSkill"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/skills/{skillId}": {
         parameters: {
             query?: never;
@@ -518,6 +538,66 @@ export interface paths {
          * @description Tạo công cụ HTTP. Quyền JWT tối thiểu: admin.
          */
         post: operations["CreateTool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tools/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Xuất công cụ HTTP ra file
+         * @description Trả toàn bộ công cụ HTTP cùng các kết nối API chúng dùng. Không chứa giá trị header bí mật, chỉ có tên header. Quyền JWT tối thiểu: member.
+         */
+        get: operations["ExportTools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tools/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Xem trước khi nhập công cụ HTTP
+         * @description Kiểm tra file nhập và cho biết mục nào mới, mục nào trùng mã với dữ liệu đã có, mục nào không hợp lệ. Không ghi dữ liệu. Kích thước tối đa 2 MiB. Quyền JWT tối thiểu: admin.
+         */
+        post: operations["PreviewToolImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tools/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Nhập công cụ HTTP từ file
+         * @description Tạo mới hoặc thay thế công cụ HTTP và kết nối API trong một giao dịch. Mỗi mục trùng mã phải có quyết định bỏ qua hoặc thay thế; nếu còn mục không hợp lệ thì không ghi gì. Kích thước tối đa 2 MiB. Quyền JWT tối thiểu: admin.
+         */
+        post: operations["ImportTools"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1230,6 +1310,8 @@ export interface components {
             checksum: string;
             /** @description Công cụ skill khai báo bằng tiền tố $ trong phần hướng dẫn; dạng slug cho HTTP tool và server.tool cho MCP. */
             tool_refs: string[];
+            /** @description true khi hệ thống còn giữ file đã upload; skill import trước đó chỉ tải được SKILL.md. */
+            source_file_available: boolean;
             /** Format: uuid */
             created_by: string;
             /** Format: date-time */
@@ -1403,6 +1485,83 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        /** @description File cấu hình công cụ có version. Kết nối được tham chiếu bằng mã (slug), không bằng ID, và không bao giờ chứa giá trị header bí mật. */
+        ToolBundle: {
+            /** @enum {string} */
+            format: "agent-platform.tools";
+            /** @enum {integer} */
+            version: 1;
+            /** Format: date-time */
+            exported_at?: string;
+            connections: components["schemas"]["ToolBundleConnection"][];
+            tools: components["schemas"]["ToolBundleTool"][];
+        };
+        ToolBundleConnection: {
+            slug: string;
+            display_name: string;
+            base_url: string;
+            public_headers: {
+                [key: string]: string;
+            };
+            secret_header_names: string[];
+        };
+        ToolBundleTool: {
+            slug: string;
+            display_name: string;
+            description: string;
+            /** @enum {string} */
+            method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+            url_template: string;
+            /** @description Mã kết nối API trong file hoặc đã có sẵn; null khi dùng URL tuyệt đối. */
+            connection_slug: string | null;
+            params: components["schemas"]["ToolParam"][];
+            public_headers: {
+                [key: string]: string;
+            };
+            timeout_seconds: number;
+            secret_header_names: string[];
+        };
+        /** @enum {string} */
+        ToolImportKind: "connection" | "tool";
+        ToolImportItem: {
+            kind: components["schemas"]["ToolImportKind"];
+            slug: string;
+            display_name: string;
+            /**
+             * @description new là mục chưa có; conflict là mục trùng mã với dữ liệu đã có; invalid là mục không nhập được.
+             * @enum {string}
+             */
+            status: "new" | "conflict" | "invalid";
+            fields: components["schemas"]["FieldError"][];
+        };
+        ToolImportPreview: {
+            items: components["schemas"]["ToolImportItem"][];
+        };
+        ToolImportDecision: {
+            kind: components["schemas"]["ToolImportKind"];
+            slug: string;
+            /** @enum {string} */
+            action: "skip" | "overwrite";
+        };
+        ToolImportRequest: {
+            bundle: components["schemas"]["ToolBundle"];
+            decisions: components["schemas"]["ToolImportDecision"][];
+        };
+        ToolImportSecretReminder: {
+            kind: components["schemas"]["ToolImportKind"];
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            display_name: string;
+            header_names: string[];
+        };
+        ToolImportResult: {
+            created: number;
+            overwritten: number;
+            skipped: number;
+            /** @description Các mục cần nhập lại giá trị header bí mật vì file không chứa giá trị. */
+            needs_secrets: components["schemas"]["ToolImportSecretReminder"][];
         };
         ToolTestRequest: {
             args: {
@@ -1709,6 +1868,33 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+            summary?: components["schemas"]["SessionSummary"];
+        };
+        /** @description Tổng hợp các lần xử lý và tin nhắn của hội thoại. Chỉ có trong danh sách hội thoại. */
+        SessionSummary: {
+            /** @description Số lần xử lý thuộc hội thoại. */
+            turn_count: number;
+            /** @description Số lần xử lý kết thúc với trạng thái failed. */
+            failed_turn_count: number;
+            /** Format: uuid */
+            latest_run_id: string | null;
+            /**
+             * @description Trạng thái của lần xử lý gần nhất, cùng giá trị với RunStatus.
+             * @enum {string|null}
+             */
+            latest_run_status: "queued" | "running" | "succeeded" | "failed" | "cancelled" | null;
+            usage: components["schemas"]["RunUsage"];
+            /**
+             * Format: int64
+             * @description Tổng thời gian xử lý (started_at đến finished_at) của các lần xử lý đã kết thúc.
+             */
+            processing_ms: number;
+            /** @description Tin nhắn người dùng đầu tiên, tối đa 200 ký tự. */
+            first_message: string | null;
+            /** @description Tin nhắn có nội dung gần nhất của người dùng hoặc trợ lý, tối đa 200 ký tự. */
+            last_message: string | null;
+            /** @enum {string|null} */
+            last_message_role: "user" | "assistant" | null;
         };
         ToolCall: {
             id: string;
@@ -2716,6 +2902,36 @@ export interface operations {
             default: components["responses"]["ProblemResponse"];
         };
     };
+    DownloadSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID tài nguyên trong không gian làm việc. */
+                skillId: components["parameters"]["skillId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Thành công. */
+            200: {
+                headers: {
+                    /** @description Tên file tải về, gồm cả dạng filename* UTF-8. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            400: components["responses"]["ProblemResponse"];
+            401: components["responses"]["ProblemResponse"];
+            403: components["responses"]["ProblemResponse"];
+            404: components["responses"]["ProblemResponse"];
+            default: components["responses"]["ProblemResponse"];
+        };
+    };
     GetSkill: {
         parameters: {
             query?: never;
@@ -3023,6 +3239,85 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HttpTool"];
+                };
+            };
+            400: components["responses"]["ProblemResponse"];
+            401: components["responses"]["ProblemResponse"];
+            403: components["responses"]["ProblemResponse"];
+            default: components["responses"]["ProblemResponse"];
+        };
+    };
+    ExportTools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Thành công. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolBundle"];
+                };
+            };
+            401: components["responses"]["ProblemResponse"];
+            403: components["responses"]["ProblemResponse"];
+            default: components["responses"]["ProblemResponse"];
+        };
+    };
+    PreviewToolImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolBundle"];
+            };
+        };
+        responses: {
+            /** @description Thành công. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolImportPreview"];
+                };
+            };
+            400: components["responses"]["ProblemResponse"];
+            401: components["responses"]["ProblemResponse"];
+            403: components["responses"]["ProblemResponse"];
+            default: components["responses"]["ProblemResponse"];
+        };
+    };
+    ImportTools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Thành công. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolImportResult"];
                 };
             };
             400: components["responses"]["ProblemResponse"];
@@ -3535,6 +3830,8 @@ export interface operations {
                 cursor?: components["parameters"]["Cursor"];
                 /** @description Lọc theo agent_id. */
                 agent_id?: string;
+                /** @description Chỉ trả các lần xử lý thuộc hội thoại này. */
+                session_id?: string;
                 /** @description Lọc theo status. */
                 status?: components["schemas"]["RunStatus"];
                 /** @description Lọc theo source. */
@@ -3669,6 +3966,10 @@ export interface operations {
                 scope?: "mine";
                 /** @description Thứ tự giảm dần dùng cho cursor. Bỏ trống tương đương created_at; phải giữ nguyên khi tải trang tiếp theo. */
                 sort?: "created_at" | "updated_at";
+                /** @description Khoảng thời gian updated_at: from gồm đầu, to không gồm cuối; from phải nhỏ hơn to. */
+                from?: string;
+                /** @description Khoảng thời gian updated_at: from gồm đầu, to không gồm cuối; from phải nhỏ hơn to. */
+                to?: string;
             };
             header?: never;
             path?: never;

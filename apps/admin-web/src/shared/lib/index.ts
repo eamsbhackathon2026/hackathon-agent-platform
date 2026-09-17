@@ -1,4 +1,5 @@
 export { cn } from "./cn";
+export { downloadFile } from "./download-file";
 export { formatDate } from "./format-date";
 export { formatDuration } from "./format-duration";
 export { PageHeaderProvider } from "./page-header";

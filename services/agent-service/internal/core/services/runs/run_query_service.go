@@ -56,7 +56,7 @@ func (s *Service) ListRuns(ctx context.Context, p domain.Principal, request inbo
 	if err != nil {
 		return page, err
 	}
-	filter := outbound.RunListOptions{Limit: options.Limit, Before: options.Before, AgentID: request.AgentID, Status: request.Status, Source: request.Source, From: request.From, To: request.To}
+	filter := outbound.RunListOptions{Limit: options.Limit, Before: options.Before, AgentID: request.AgentID, SessionID: request.SessionID, Status: request.Status, Source: request.Source, From: request.From, To: request.To}
 	if p.Kind == domain.PrincipalAPIKey {
 		filter.OwnerAPIKeyID = &p.APIKeyID
 	} else if p.Role == domain.RoleMember {

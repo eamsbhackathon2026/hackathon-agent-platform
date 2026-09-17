@@ -1,1 +1,1 @@
-export { ChatThread } from "./ui/chat-thread";
+export { ChatMarkdown, ChatThread } from "./ui/chat-thread";

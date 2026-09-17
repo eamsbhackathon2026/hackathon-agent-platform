@@ -150,6 +150,40 @@ func (q *Queries) ListAPIConnections(ctx context.Context, arg ListAPIConnections
 	return items, nil
 }
 
+const listAllAPIConnections = `-- name: ListAllAPIConnections :many
+SELECT id, slug, display_name, base_url, public_headers, secret_headers_ciphertext, secret_header_names, created_at, updated_at FROM api_connections ORDER BY slug
+`
+
+func (q *Queries) ListAllAPIConnections(ctx context.Context) ([]ApiConnection, error) {
+	rows, err := q.db.Query(ctx, listAllAPIConnections)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ApiConnection{}
+	for rows.Next() {
+		var i ApiConnection
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.DisplayName,
+			&i.BaseUrl,
+			&i.PublicHeaders,
+			&i.SecretHeadersCiphertext,
+			&i.SecretHeaderNames,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateAPIConnection = `-- name: UpdateAPIConnection :execrows
 UPDATE api_connections
 SET slug=$2,display_name=$3,base_url=$4,public_headers=$5,secret_headers_ciphertext=$6,secret_header_names=$7,updated_at=$8

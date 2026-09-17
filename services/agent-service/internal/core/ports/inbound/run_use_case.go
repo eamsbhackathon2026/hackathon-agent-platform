@@ -26,10 +26,11 @@ type RunCommand struct {
 // RunListRequest contains public filters plus cursor pagination.
 type RunListRequest struct {
 	PageRequest
-	AgentID  *uuid.UUID
-	Status   *domain.RunStatus
-	Source   *domain.RunSource
-	From, To *time.Time
+	AgentID   *uuid.UUID
+	SessionID *uuid.UUID
+	Status    *domain.RunStatus
+	Source    *domain.RunSource
+	From, To  *time.Time
 }
 
 // RunPage contains one descending execution page.

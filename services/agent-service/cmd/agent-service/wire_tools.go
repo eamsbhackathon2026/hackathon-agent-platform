@@ -29,5 +29,5 @@ func wireTools(cfg config.Config, store *postgres.Store, cipher outbound.SecretC
 	if err != nil {
 		return nil, nil, err
 	}
-	return httpadapter.NewToolingHandler(service, service, service, service), service, nil
+	return httpadapter.NewToolingHandler(service, service, service, service, service), service, nil
 }

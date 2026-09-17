@@ -17,6 +17,8 @@ func skillSummaryDTO(skill domain.Skill) gen.SkillSummary {
 		CreatedBy:      skill.CreatedBy,
 		CreatedAt:      skill.CreatedAt,
 		UpdatedAt:      skill.UpdatedAt,
+
+		SourceFileAvailable: skill.SourceFileAvailable,
 	}
 }
 
@@ -33,6 +35,8 @@ func skillDTO(skill domain.Skill) gen.Skill {
 		CreatedBy:      skill.CreatedBy,
 		CreatedAt:      skill.CreatedAt,
 		UpdatedAt:      skill.UpdatedAt,
+
+		SourceFileAvailable: skill.SourceFileAvailable,
 	}
 }
 

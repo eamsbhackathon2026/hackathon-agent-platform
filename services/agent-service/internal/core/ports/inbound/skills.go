@@ -25,6 +25,7 @@ type SkillUseCase interface {
 	ListSkills(context.Context, domain.Principal, PageRequest) (SkillPage, error)
 	ImportSkill(context.Context, domain.Principal, SkillImportCommand) (domain.Skill, error)
 	GetSkill(context.Context, domain.Principal, uuid.UUID) (domain.Skill, error)
+	DownloadSkill(context.Context, domain.Principal, uuid.UUID) (domain.SkillFile, error)
 	DeleteSkill(context.Context, domain.Principal, uuid.UUID) error
 }
 

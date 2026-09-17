@@ -296,3 +296,59 @@ func TestGetRunAttachesToolResultsButListDoesNot(t *testing.T) {
 }
 
 func ptr[T any](value T) *T { return &value }
+
+func TestSessionListSummarizesPageAndValidatesActivityWindow(t *testing.T) {
+	fixture := newEngineFixture(t, nil, nil, nil)
+	now := time.Date(2026, 9, 16, 9, 0, 0, 0, time.UTC)
+	run := seedRun(t, fixture, fixture.principal.UserID, uuid.Nil, now)
+	if _, err := fixture.store.AppendMessage(t.Context(), domain.Message{ID: uuid.New(), SessionID: run.SessionID, RunID: &run.ID, Role: "user", Content: "Hi", ToolCalls: []domain.ToolCall{}, CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	page, err := fixture.service.ListSessions(t.Context(), fixture.principal, inbound.SessionListRequest{})
+	if err != nil || len(page.Items) != 1 {
+		t.Fatalf("page=%+v err=%v", page, err)
+	}
+	summary, ok := page.Summaries[run.SessionID]
+	if !ok || summary.TurnCount != 1 || summary.LatestRunID == nil || *summary.LatestRunID != run.ID || summary.FirstMessage == nil || *summary.FirstMessage != "Hi" {
+		t.Fatalf("summary=%+v ok=%v", summary, ok)
+	}
+
+	later := now.Add(time.Hour)
+	outside, err := fixture.service.ListSessions(t.Context(), fixture.principal, inbound.SessionListRequest{From: &later})
+	if err != nil || len(outside.Items) != 0 {
+		t.Fatalf("outside=%+v err=%v", outside, err)
+	}
+	if _, err = fixture.service.ListSessions(t.Context(), fixture.principal, inbound.SessionListRequest{From: &later, To: &now}); !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("inverted window: %v", err)
+	}
+}
+
+func TestRunListFiltersByConversation(t *testing.T) {
+	fixture := newEngineFixture(t, nil, nil, nil)
+	now := time.Date(2026, 9, 16, 9, 0, 0, 0, time.UTC)
+	wanted := seedRun(t, fixture, fixture.principal.UserID, uuid.Nil, now)
+	seedRun(t, fixture, fixture.principal.UserID, uuid.Nil, now.Add(time.Second))
+	page, err := fixture.service.ListRuns(t.Context(), fixture.principal, inbound.RunListRequest{SessionID: &wanted.SessionID})
+	if err != nil || len(page.Items) != 1 || page.Items[0].ID != wanted.ID {
+		t.Fatalf("page=%+v err=%v", page, err)
+	}
+	// Naming someone else's conversation must not widen what a caller may read.
+	otherUserRun := seedRun(t, fixture, uuid.New(), uuid.Nil, now.Add(2*time.Second))
+	keyID := uuid.New()
+	keyRun := seedRun(t, fixture, uuid.Nil, keyID, now.Add(3*time.Second))
+	memberPage, err := fixture.service.ListRuns(t.Context(), fixture.principal, inbound.RunListRequest{SessionID: &otherUserRun.SessionID})
+	if err != nil || len(memberPage.Items) != 0 {
+		t.Fatalf("member saw another user's conversation: %+v err=%v", memberPage, err)
+	}
+	apiKey := domain.Principal{Kind: domain.PrincipalAPIKey, APIKeyID: uuid.New(), Scopes: []string{"runs:read"}}
+	keyPage, err := fixture.service.ListRuns(t.Context(), apiKey, inbound.RunListRequest{SessionID: &keyRun.SessionID})
+	if err != nil || len(keyPage.Items) != 0 {
+		t.Fatalf("API key saw another key's conversation: %+v err=%v", keyPage, err)
+	}
+	owner := fixture.principal
+	owner.Role = domain.RoleOwner
+	ownerPage, err := fixture.service.ListRuns(t.Context(), owner, inbound.RunListRequest{SessionID: &otherUserRun.SessionID})
+	if err != nil || len(ownerPage.Items) != 1 || ownerPage.Items[0].ID != otherUserRun.ID {
+		t.Fatalf("owner page=%+v err=%v", ownerPage, err)
+	}
+}

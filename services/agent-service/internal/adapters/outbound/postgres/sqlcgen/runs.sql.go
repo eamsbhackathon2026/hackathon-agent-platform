@@ -683,18 +683,20 @@ func (q *Queries) ListRunMessages(ctx context.Context, arg ListRunMessagesParams
 const listRuns = `-- name: ListRuns :many
 SELECT id, agent_id, session_id, mode, status, source, triggered_by_user_id, triggered_by_api_key_id, input, output, error_code, error_message, iterations, input_tokens, output_tokens, metadata, cancel_requested_at, queued_at, started_at, finished_at, created_at, webhook_url FROM runs
 WHERE ($1::uuid IS NULL OR agent_id=$1)
-  AND ($2::text IS NULL OR status=$2)
-  AND ($3::text IS NULL OR source=$3)
-  AND ($4::timestamptz IS NULL OR created_at >= $4)
-  AND ($5::timestamptz IS NULL OR created_at < $5)
-  AND ($6::uuid IS NULL OR triggered_by_user_id=$6)
-  AND ($7::uuid IS NULL OR triggered_by_api_key_id=$7)
-  AND ($8::timestamptz IS NULL OR (created_at,id) < ($8,$9::uuid))
-ORDER BY created_at DESC,id DESC LIMIT $10
+  AND ($2::uuid IS NULL OR session_id=$2)
+  AND ($3::text IS NULL OR status=$3)
+  AND ($4::text IS NULL OR source=$4)
+  AND ($5::timestamptz IS NULL OR created_at >= $5)
+  AND ($6::timestamptz IS NULL OR created_at < $6)
+  AND ($7::uuid IS NULL OR triggered_by_user_id=$7)
+  AND ($8::uuid IS NULL OR triggered_by_api_key_id=$8)
+  AND ($9::timestamptz IS NULL OR (created_at,id) < ($9,$10::uuid))
+ORDER BY created_at DESC,id DESC LIMIT $11
 `
 
 type ListRunsParams struct {
 	AgentID       pgtype.UUID        `json:"agent_id"`
+	SessionID     pgtype.UUID        `json:"session_id"`
 	Status        pgtype.Text        `json:"status"`
 	Source        pgtype.Text        `json:"source"`
 	FromTime      pgtype.Timestamptz `json:"from_time"`
@@ -709,6 +711,7 @@ type ListRunsParams struct {
 func (q *Queries) ListRuns(ctx context.Context, arg ListRunsParams) ([]Run, error) {
 	rows, err := q.db.Query(ctx, listRuns,
 		arg.AgentID,
+		arg.SessionID,
 		arg.Status,
 		arg.Source,
 		arg.FromTime,
@@ -767,8 +770,10 @@ WHERE deleted_at IS NULL
   AND ($2::text IS NULL OR source=$2)
   AND ($3::uuid IS NULL OR created_by_user_id=$3)
   AND ($4::uuid IS NULL OR created_by_api_key_id=$4)
-  AND ($5::timestamptz IS NULL OR (created_at,id) < ($5,$6::uuid))
-ORDER BY created_at DESC,id DESC LIMIT $7
+  AND ($5::timestamptz IS NULL OR updated_at >= $5)
+  AND ($6::timestamptz IS NULL OR updated_at < $6)
+  AND ($7::timestamptz IS NULL OR (created_at,id) < ($7,$8::uuid))
+ORDER BY created_at DESC,id DESC LIMIT $9
 `
 
 type ListSessionsParams struct {
@@ -776,6 +781,8 @@ type ListSessionsParams struct {
 	Source        pgtype.Text        `json:"source"`
 	OwnerUserID   pgtype.UUID        `json:"owner_user_id"`
 	OwnerApiKeyID pgtype.UUID        `json:"owner_api_key_id"`
+	UpdatedFrom   pgtype.Timestamptz `json:"updated_from"`
+	UpdatedTo     pgtype.Timestamptz `json:"updated_to"`
 	BeforeTime    pgtype.Timestamptz `json:"before_time"`
 	BeforeID      pgtype.UUID        `json:"before_id"`
 	Limit         int32              `json:"limit"`
@@ -787,6 +794,8 @@ func (q *Queries) ListSessions(ctx context.Context, arg ListSessionsParams) ([]S
 		arg.Source,
 		arg.OwnerUserID,
 		arg.OwnerApiKeyID,
+		arg.UpdatedFrom,
+		arg.UpdatedTo,
 		arg.BeforeTime,
 		arg.BeforeID,
 		arg.Limit,
@@ -830,8 +839,10 @@ WHERE deleted_at IS NULL
   AND ($2::text IS NULL OR source=$2)
   AND ($3::uuid IS NULL OR created_by_user_id=$3)
   AND ($4::uuid IS NULL OR created_by_api_key_id=$4)
-  AND ($5::timestamptz IS NULL OR (updated_at,id) < ($5,$6::uuid))
-ORDER BY updated_at DESC,id DESC LIMIT $7
+  AND ($5::timestamptz IS NULL OR updated_at >= $5)
+  AND ($6::timestamptz IS NULL OR updated_at < $6)
+  AND ($7::timestamptz IS NULL OR (updated_at,id) < ($7,$8::uuid))
+ORDER BY updated_at DESC,id DESC LIMIT $9
 `
 
 type ListSessionsByUpdatedAtParams struct {
@@ -839,6 +850,8 @@ type ListSessionsByUpdatedAtParams struct {
 	Source          pgtype.Text        `json:"source"`
 	OwnerUserID     pgtype.UUID        `json:"owner_user_id"`
 	OwnerApiKeyID   pgtype.UUID        `json:"owner_api_key_id"`
+	UpdatedFrom     pgtype.Timestamptz `json:"updated_from"`
+	UpdatedTo       pgtype.Timestamptz `json:"updated_to"`
 	BeforeUpdatedAt pgtype.Timestamptz `json:"before_updated_at"`
 	BeforeID        pgtype.UUID        `json:"before_id"`
 	Limit           int32              `json:"limit"`
@@ -850,6 +863,8 @@ func (q *Queries) ListSessionsByUpdatedAt(ctx context.Context, arg ListSessionsB
 		arg.Source,
 		arg.OwnerUserID,
 		arg.OwnerApiKeyID,
+		arg.UpdatedFrom,
+		arg.UpdatedTo,
 		arg.BeforeUpdatedAt,
 		arg.BeforeID,
 		arg.Limit,
@@ -1024,6 +1039,42 @@ func (q *Queries) RunCancelRequested(ctx context.Context, id pgtype.UUID) (bool,
 	return requested, err
 }
 
+const sessionFirstUserMessages = `-- name: SessionFirstUserMessages :many
+SELECT ids.session_id::uuid AS session_id, first.content::text AS content
+FROM unnest($1::uuid[]) AS ids(session_id)
+CROSS JOIN LATERAL (
+  SELECT left(m.content,200) AS content FROM messages m
+  WHERE m.session_id=ids.session_id AND m.role='user' AND btrim(m.content)<>''
+  ORDER BY m.seq, m.id LIMIT 1
+) AS first
+`
+
+type SessionFirstUserMessagesRow struct {
+	SessionID pgtype.UUID `json:"session_id"`
+	Content   string      `json:"content"`
+}
+
+// LATERAL + LIMIT 1 walks messages_session_seq per conversation instead of reading every message.
+func (q *Queries) SessionFirstUserMessages(ctx context.Context, sessionIds []pgtype.UUID) ([]SessionFirstUserMessagesRow, error) {
+	rows, err := q.db.Query(ctx, sessionFirstUserMessages, sessionIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SessionFirstUserMessagesRow{}
+	for rows.Next() {
+		var i SessionFirstUserMessagesRow
+		if err := rows.Scan(&i.SessionID, &i.Content); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const sessionHasActiveRuns = `-- name: SessionHasActiveRuns :one
 SELECT EXISTS(SELECT 1 FROM runs WHERE session_id=$1 AND status IN ('queued','running'))
 `
@@ -1033,6 +1084,104 @@ func (q *Queries) SessionHasActiveRuns(ctx context.Context, sessionID pgtype.UUI
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const sessionLastMessages = `-- name: SessionLastMessages :many
+SELECT ids.session_id::uuid AS session_id, last.role::text AS role, last.content::text AS content
+FROM unnest($1::uuid[]) AS ids(session_id)
+CROSS JOIN LATERAL (
+  SELECT m.role, left(m.content,200) AS content FROM messages m
+  WHERE m.session_id=ids.session_id AND m.role IN ('user','assistant') AND btrim(m.content)<>''
+  ORDER BY m.seq DESC, m.id DESC LIMIT 1
+) AS last
+`
+
+type SessionLastMessagesRow struct {
+	SessionID pgtype.UUID `json:"session_id"`
+	Role      string      `json:"role"`
+	Content   string      `json:"content"`
+}
+
+func (q *Queries) SessionLastMessages(ctx context.Context, sessionIds []pgtype.UUID) ([]SessionLastMessagesRow, error) {
+	rows, err := q.db.Query(ctx, sessionLastMessages, sessionIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SessionLastMessagesRow{}
+	for rows.Next() {
+		var i SessionLastMessagesRow
+		if err := rows.Scan(&i.SessionID, &i.Role, &i.Content); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sessionRunSummaries = `-- name: SessionRunSummaries :many
+SELECT DISTINCT ON (session_id)
+  session_id,
+  (count(*) OVER w)::bigint AS turn_count,
+  (count(*) FILTER (WHERE status='failed') OVER w)::bigint AS failed_turn_count,
+  id AS latest_run_id,
+  status AS latest_run_status,
+  COALESCE(sum(input_tokens) OVER w,0)::bigint AS input_tokens,
+  (count(input_tokens) OVER w)::bigint AS input_reported,
+  COALESCE(sum(output_tokens) OVER w,0)::bigint AS output_tokens,
+  (count(output_tokens) OVER w)::bigint AS output_reported,
+  COALESCE(sum((extract(epoch FROM finished_at-started_at)*1000)::bigint) FILTER (WHERE finished_at IS NOT NULL AND started_at IS NOT NULL) OVER w,0)::bigint AS processing_ms
+FROM runs
+WHERE session_id = ANY($1::uuid[])
+WINDOW w AS (PARTITION BY session_id)
+ORDER BY session_id, created_at DESC, id DESC
+`
+
+type SessionRunSummariesRow struct {
+	SessionID       pgtype.UUID `json:"session_id"`
+	TurnCount       int64       `json:"turn_count"`
+	FailedTurnCount int64       `json:"failed_turn_count"`
+	LatestRunID     pgtype.UUID `json:"latest_run_id"`
+	LatestRunStatus string      `json:"latest_run_status"`
+	InputTokens     int64       `json:"input_tokens"`
+	InputReported   int64       `json:"input_reported"`
+	OutputTokens    int64       `json:"output_tokens"`
+	OutputReported  int64       `json:"output_reported"`
+	ProcessingMs    int64       `json:"processing_ms"`
+}
+
+func (q *Queries) SessionRunSummaries(ctx context.Context, sessionIds []pgtype.UUID) ([]SessionRunSummariesRow, error) {
+	rows, err := q.db.Query(ctx, sessionRunSummaries, sessionIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SessionRunSummariesRow{}
+	for rows.Next() {
+		var i SessionRunSummariesRow
+		if err := rows.Scan(
+			&i.SessionID,
+			&i.TurnCount,
+			&i.FailedTurnCount,
+			&i.LatestRunID,
+			&i.LatestRunStatus,
+			&i.InputTokens,
+			&i.InputReported,
+			&i.OutputTokens,
+			&i.OutputReported,
+			&i.ProcessingMs,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const startQueuedRun = `-- name: StartQueuedRun :one

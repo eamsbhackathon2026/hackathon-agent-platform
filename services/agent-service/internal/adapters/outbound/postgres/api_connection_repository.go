@@ -58,6 +58,23 @@ func (s *Store) ListAPIConnections(ctx context.Context, options domain.PageOptio
 	return result, nil
 }
 
+// ListAllAPIConnections returns every saved API connection ordered by slug.
+func (s *Store) ListAllAPIConnections(ctx context.Context) ([]domain.APIConnection, error) {
+	rows, err := s.queries(ctx).ListAllAPIConnections(ctx)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	result := make([]domain.APIConnection, 0, len(rows))
+	for _, row := range rows {
+		connection, modelErr := apiConnectionModel(row)
+		if modelErr != nil {
+			return nil, modelErr
+		}
+		result = append(result, connection)
+	}
+	return result, nil
+}
+
 // UpdateAPIConnection persists a complete connection replacement.
 func (s *Store) UpdateAPIConnection(ctx context.Context, connection domain.APIConnection) error {
 	n, err := s.queries(ctx).UpdateAPIConnection(ctx, sqlcgen.UpdateAPIConnectionParams{

@@ -2,8 +2,18 @@ package http
 
 import (
 	"bytes"
+	"context"
+	"mime"
 	"mime/multipart"
+	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/google/uuid"
+
+	"agent-platform/services/agent-service/internal/adapters/inbound/http/gen"
+	"agent-platform/services/agent-service/internal/core/domain"
+	"agent-platform/services/agent-service/internal/core/ports/inbound"
 )
 
 func TestSkillUploadReadsExactlyOneFile(t *testing.T) {
@@ -54,4 +64,31 @@ func multipartReader(t *testing.T, parts []multipartPart) *multipart.Reader {
 		t.Fatal(err)
 	}
 	return multipart.NewReader(bytes.NewReader(payload.Bytes()), boundary)
+}
+
+type skillDownloadSpy struct {
+	inbound.SkillUseCase
+	file domain.SkillFile
+}
+
+func (s skillDownloadSpy) DownloadSkill(context.Context, domain.Principal, uuid.UUID) (domain.SkillFile, error) {
+	return s.file, nil
+}
+
+func TestDownloadSkillSendsTheFileWithItsName(t *testing.T) {
+	handler := NewSkillHandler(skillDownloadSpy{file: domain.SkillFile{Filename: "Trợ lý.zip", Content: []byte("PK-bytes")}}, nil)
+	ctx := context.WithValue(t.Context(), requestContextKey{}, requestInfo{principal: domain.Principal{Kind: domain.PrincipalUser, UserID: uuid.New(), Role: domain.RoleMember}})
+	response, err := handler.DownloadSkill(ctx, gen.DownloadSkillRequestObject{SkillId: uuid.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder := httptest.NewRecorder()
+	if err = response.VisitDownloadSkillResponse(recorder); err != nil {
+		t.Fatal(err)
+	}
+	header := recorder.Header().Get("Content-Disposition")
+	_, params, err := mime.ParseMediaType(header)
+	if err != nil || params["filename"] != "Trợ lý.zip" || !strings.HasPrefix(header, `attachment; filename="Tro ly.zip"`) || recorder.Body.String() != "PK-bytes" || recorder.Header().Get("Content-Length") != "8" {
+		t.Fatalf("headers=%v body=%q err=%v", recorder.Header(), recorder.Body.String(), err)
+	}
 }

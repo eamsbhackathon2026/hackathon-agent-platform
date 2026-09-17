@@ -67,6 +67,23 @@ func (s *Store) ListTools(ctx context.Context, options domain.PageOptions) ([]do
 	return result, nil
 }
 
+// ListAllTools returns every saved HTTP tool ordered by slug.
+func (s *Store) ListAllTools(ctx context.Context) ([]domain.HTTPTool, error) {
+	rows, err := s.queries(ctx).ListAllTools(ctx)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	result := make([]domain.HTTPTool, 0, len(rows))
+	for _, row := range rows {
+		tool, modelErr := httpToolModel(row)
+		if modelErr != nil {
+			return nil, modelErr
+		}
+		result = append(result, tool)
+	}
+	return result, nil
+}
+
 // UpdateTool persists a complete HTTP tool replacement.
 func (s *Store) UpdateTool(ctx context.Context, tool domain.HTTPTool) error {
 	timeout, err := toolTimeoutSeconds(tool.TimeoutSeconds)

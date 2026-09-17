@@ -61,6 +61,20 @@ func (q *Queries) CreateSkill(ctx context.Context, arg CreateSkillParams) error 
 	return err
 }
 
+const createSkillSourceFile = `-- name: CreateSkillSourceFile :exec
+INSERT INTO skill_source_files (skill_id,content) VALUES ($1,$2)
+`
+
+type CreateSkillSourceFileParams struct {
+	SkillID pgtype.UUID `json:"skill_id"`
+	Content []byte      `json:"content"`
+}
+
+func (q *Queries) CreateSkillSourceFile(ctx context.Context, arg CreateSkillSourceFileParams) error {
+	_, err := q.db.Exec(ctx, createSkillSourceFile, arg.SkillID, arg.Content)
+	return err
+}
+
 const deleteAgentSkills = `-- name: DeleteAgentSkills :exec
 DELETE FROM agent_skills WHERE agent_id=$1
 `
@@ -83,26 +97,45 @@ func (q *Queries) DeleteSkill(ctx context.Context, id pgtype.UUID) (int64, error
 }
 
 const getSkill = `-- name: GetSkill :one
-SELECT id, name, description, source_type, source_filename, content, checksum, created_by, created_at, updated_at, tool_refs FROM skills WHERE id=$1
+SELECT skills.id, skills.name, skills.description, skills.source_type, skills.source_filename, skills.content, skills.checksum, skills.created_by, skills.created_at, skills.updated_at, skills.tool_refs,
+  EXISTS(SELECT 1 FROM skill_source_files f WHERE f.skill_id=skills.id)::boolean AS source_file_available
+FROM skills WHERE id=$1
 `
 
-func (q *Queries) GetSkill(ctx context.Context, id pgtype.UUID) (Skill, error) {
+type GetSkillRow struct {
+	Skill               Skill `json:"skill"`
+	SourceFileAvailable bool  `json:"source_file_available"`
+}
+
+func (q *Queries) GetSkill(ctx context.Context, id pgtype.UUID) (GetSkillRow, error) {
 	row := q.db.QueryRow(ctx, getSkill, id)
-	var i Skill
+	var i GetSkillRow
 	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Description,
-		&i.SourceType,
-		&i.SourceFilename,
-		&i.Content,
-		&i.Checksum,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.ToolRefs,
+		&i.Skill.ID,
+		&i.Skill.Name,
+		&i.Skill.Description,
+		&i.Skill.SourceType,
+		&i.Skill.SourceFilename,
+		&i.Skill.Content,
+		&i.Skill.Checksum,
+		&i.Skill.CreatedBy,
+		&i.Skill.CreatedAt,
+		&i.Skill.UpdatedAt,
+		&i.Skill.ToolRefs,
+		&i.SourceFileAvailable,
 	)
 	return i, err
+}
+
+const getSkillSourceFile = `-- name: GetSkillSourceFile :one
+SELECT content FROM skill_source_files WHERE skill_id=$1
+`
+
+func (q *Queries) GetSkillSourceFile(ctx context.Context, skillID pgtype.UUID) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getSkillSourceFile, skillID)
+	var content []byte
+	err := row.Scan(&content)
+	return content, err
 }
 
 const listAgentSkillIDs = `-- name: ListAgentSkillIDs :many
@@ -131,7 +164,9 @@ func (q *Queries) ListAgentSkillIDs(ctx context.Context, agentID pgtype.UUID) ([
 }
 
 const listSkills = `-- name: ListSkills :many
-SELECT id,name,description,source_type,source_filename,checksum,tool_refs,created_by,created_at,updated_at FROM skills
+SELECT id,name,description,source_type,source_filename,checksum,tool_refs,created_by,created_at,updated_at,
+  EXISTS(SELECT 1 FROM skill_source_files f WHERE f.skill_id=skills.id)::boolean AS source_file_available
+FROM skills
 WHERE ($2::timestamptz IS NULL OR (created_at,id) < ($2::timestamptz, $3::uuid))
 ORDER BY created_at DESC,id DESC LIMIT $1
 `
@@ -143,16 +178,17 @@ type ListSkillsParams struct {
 }
 
 type ListSkillsRow struct {
-	ID             pgtype.UUID        `json:"id"`
-	Name           string             `json:"name"`
-	Description    string             `json:"description"`
-	SourceType     string             `json:"source_type"`
-	SourceFilename string             `json:"source_filename"`
-	Checksum       string             `json:"checksum"`
-	ToolRefs       []string           `json:"tool_refs"`
-	CreatedBy      pgtype.UUID        `json:"created_by"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	ID                  pgtype.UUID        `json:"id"`
+	Name                string             `json:"name"`
+	Description         string             `json:"description"`
+	SourceType          string             `json:"source_type"`
+	SourceFilename      string             `json:"source_filename"`
+	Checksum            string             `json:"checksum"`
+	ToolRefs            []string           `json:"tool_refs"`
+	CreatedBy           pgtype.UUID        `json:"created_by"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	SourceFileAvailable bool               `json:"source_file_available"`
 }
 
 func (q *Queries) ListSkills(ctx context.Context, arg ListSkillsParams) ([]ListSkillsRow, error) {
@@ -175,6 +211,7 @@ func (q *Queries) ListSkills(ctx context.Context, arg ListSkillsParams) ([]ListS
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SourceFileAvailable,
 		); err != nil {
 			return nil, err
 		}

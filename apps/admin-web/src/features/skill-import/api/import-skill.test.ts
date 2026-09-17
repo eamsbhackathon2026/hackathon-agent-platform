@@ -18,7 +18,7 @@ describe("importSkill", () => {
       contentType = request.headers.get("Content-Type") ?? "";
       authorization = request.headers.get("Authorization") ?? "";
       requestBody = await request.text();
-      return new Response(JSON.stringify({ id: "20000000-0000-4000-8000-000000000002", name: "Writing", description: "", source_type: "markdown", source_filename: "writing.md", content: "# Writing", checksum: "0".repeat(64), tool_refs: [], created_by: "10000000-0000-4000-8000-000000000001", created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" }), { status: 201, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ id: "20000000-0000-4000-8000-000000000002", name: "Writing", description: "", source_type: "markdown", source_filename: "writing.md", content: "# Writing", checksum: "0".repeat(64), tool_refs: [], source_file_available: false, created_by: "10000000-0000-4000-8000-000000000001", created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" }), { status: 201, headers: { "Content-Type": "application/json" } });
     });
 
     const file = new File(["# Writing"], "writing.md", { type: "text/markdown" });

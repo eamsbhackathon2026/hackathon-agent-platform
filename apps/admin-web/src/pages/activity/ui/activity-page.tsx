@@ -4,18 +4,9 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import { agentQueries } from "@/entities/agent";
-import { runQueries, type RunFilters, type RunStatus } from "@/entities/run";
+import { runQueries, runStatusLabel as statusLabel, runStatusVariant as statusVariant, type RunFilters, type RunStatus } from "@/entities/run";
 import { formatDate, formatDuration, problemToAction } from "@/shared/lib";
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Skeleton, Table, TableBody, TableCard, TableCardState, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui";
-
-const statusLabel: Record<RunStatus, string> = { queued: "Queued", running: "Processing", succeeded: "Completed", failed: "Failed", cancelled: "Stopped" };
-
-function statusVariant(status: RunStatus) {
-  if (status === "succeeded") return "success" as const;
-  if (status === "failed") return "destructive" as const;
-  if (status === "queued" || status === "running") return "warning" as const;
-  return "outline" as const;
-}
 
 /** Reports link here with a window attached; the filters must start where the link points. */
 function filtersFromUrl(params: URLSearchParams): RunFilters {

@@ -212,6 +212,11 @@ type Skill struct {
 	ToolRefs       []string           `json:"tool_refs"`
 }
 
+type SkillSourceFile struct {
+	SkillID pgtype.UUID `json:"skill_id"`
+	Content []byte      `json:"content"`
+}
+
 type Span struct {
 	ID           pgtype.UUID        `json:"id"`
 	RunID        pgtype.UUID        `json:"run_id"`

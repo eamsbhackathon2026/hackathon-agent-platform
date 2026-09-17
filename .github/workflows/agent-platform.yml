@@ -9,6 +9,9 @@ on:
     paths-ignore:
       - 'README.md'
       - '**/*.md'
+      # demo/ là mã nguồn của MSB Guardian, có pipeline riêng trong hai repo
+      # release của nó. Sửa demo không sinh image nào của nền tảng.
+      - 'demo/**'
   workflow_dispatch: {}
 
 env:

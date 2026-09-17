@@ -50,7 +50,7 @@ func parseUpload(filename string, payload []byte) (domain.Skill, error) {
 	}
 	description = truncateRunes(description, 4000)
 	checksum := sha256.Sum256([]byte(normalized))
-	skill := domain.Skill{Name: name, Description: description, SourceType: sourceType, SourceFilename: safeFilename, Content: normalized, Checksum: hex.EncodeToString(checksum[:]), ToolRefs: domain.ParseSkillToolRefs(body)}
+	skill := domain.Skill{Name: name, Description: description, SourceType: sourceType, SourceFilename: safeFilename, SourceFile: append([]byte(nil), payload...), Content: normalized, Checksum: hex.EncodeToString(checksum[:]), ToolRefs: domain.ParseSkillToolRefs(body)}
 	if err = domain.ValidateSkill(skill); err != nil {
 		return domain.Skill{}, err
 	}

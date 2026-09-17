@@ -14,6 +14,7 @@ type RunListOptions struct {
 	Limit                      int
 	Before                     *domain.PageCursor
 	AgentID                    *uuid.UUID
+	SessionID                  *uuid.UUID
 	Status                     *domain.RunStatus
 	Source                     *domain.RunSource
 	From, To                   *time.Time
@@ -28,6 +29,7 @@ type SessionListOptions struct {
 	OrderByUpdatedAt           bool
 	AgentID                    *uuid.UUID
 	Source                     *domain.RunSource
+	UpdatedFrom, UpdatedTo     *time.Time
 	OwnerUserID, OwnerAPIKeyID *uuid.UUID
 }
 
@@ -56,6 +58,9 @@ type SessionRepository interface {
 	GetSessionForUpdate(context.Context, uuid.UUID) (domain.Session, error)
 	GetSessionByExternalKey(context.Context, uuid.UUID, string) (domain.Session, error)
 	ListSessions(context.Context, SessionListOptions) ([]domain.Session, error)
+	// SummarizeSessions returns one summary per requested conversation, including
+	// conversations that have no runs or messages yet.
+	SummarizeSessions(context.Context, []uuid.UUID) (map[uuid.UUID]domain.SessionSummary, error)
 	HasActiveRuns(context.Context, uuid.UUID) (bool, error)
 	DeleteSession(context.Context, uuid.UUID, time.Time) error
 	UpdatePromptTokenCalibration(context.Context, uuid.UUID, int, int, time.Time) error

@@ -18,7 +18,7 @@ func NewSessionHandler(sessions inbound.SessionQueryUseCase) *SessionHandler {
 
 // ListSessions returns one authorized conversation page.
 func (h *SessionHandler) ListSessions(ctx context.Context, request gen.ListSessionsRequestObject) (gen.ListSessionsResponseObject, error) {
-	filter := inbound.SessionListRequest{PageRequest: pageRequest(request.Params.Limit, request.Params.Cursor), AgentID: request.Params.AgentId}
+	filter := inbound.SessionListRequest{PageRequest: pageRequest(request.Params.Limit, request.Params.Cursor), AgentID: request.Params.AgentId, From: request.Params.From, To: request.Params.To}
 	if request.Params.Source != nil {
 		value := domain.RunSource(*request.Params.Source)
 		filter.Source = &value
@@ -34,6 +34,10 @@ func (h *SessionHandler) ListSessions(ctx context.Context, request gen.ListSessi
 	items := make([]gen.Session, len(page.Items))
 	for i, session := range page.Items {
 		items[i] = sessionDTO(session)
+		if summary, ok := page.Summaries[session.ID]; ok {
+			dto := sessionSummaryDTO(summary)
+			items[i].Summary = &dto
+		}
 	}
 	return gen.ListSessions200JSONResponse{Items: items, NextCursor: nullableValue(page.NextCursor)}, nil
 }

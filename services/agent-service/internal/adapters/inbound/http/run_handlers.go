@@ -104,7 +104,7 @@ func (h *RunHandler) CancelRun(ctx context.Context, request gen.CancelRunRequest
 
 // ListRuns maps public filters and a keyset page.
 func (h *RunHandler) ListRuns(ctx context.Context, request gen.ListRunsRequestObject) (gen.ListRunsResponseObject, error) {
-	filter := inbound.RunListRequest{PageRequest: pageRequest(request.Params.Limit, request.Params.Cursor), AgentID: request.Params.AgentId, From: request.Params.From, To: request.Params.To}
+	filter := inbound.RunListRequest{PageRequest: pageRequest(request.Params.Limit, request.Params.Cursor), AgentID: request.Params.AgentId, SessionID: request.Params.SessionId, From: request.Params.From, To: request.Params.To}
 	if request.Params.Status != nil {
 		value := domain.RunStatus(*request.Params.Status)
 		filter.Status = &value

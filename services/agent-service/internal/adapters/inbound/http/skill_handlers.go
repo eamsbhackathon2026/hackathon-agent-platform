@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -57,6 +58,20 @@ func (h *SkillHandler) GetSkill(ctx context.Context, request gen.GetSkillRequest
 		return nil, err
 	}
 	return gen.GetSkill200JSONResponse(skillDTO(skill)), nil
+}
+
+// DownloadSkill streams the uploaded file with a download file name.
+func (h *SkillHandler) DownloadSkill(ctx context.Context, request gen.DownloadSkillRequestObject) (gen.DownloadSkillResponseObject, error) {
+	file, err := h.skills.DownloadSkill(ctx, requestFrom(ctx).principal, request.SkillId)
+	if err != nil {
+		return nil, err
+	}
+	disposition := attachmentDisposition(file.Filename)
+	return gen.DownloadSkill200ApplicationoctetStreamResponse{
+		Body:          bytes.NewReader(file.Content),
+		ContentLength: int64(len(file.Content)),
+		Headers:       gen.DownloadSkill200ResponseHeaders{ContentDisposition: &disposition},
+	}, nil
 }
 
 // DeleteSkill removes one skill and all bindings through database cascades.

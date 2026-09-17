@@ -82,6 +82,9 @@ func (*skillRepositoryStub) CreateSkill(context.Context, domain.Skill) error { r
 func (*skillRepositoryStub) GetSkill(context.Context, uuid.UUID) (domain.Skill, error) {
 	return domain.Skill{}, domain.ErrNotFound
 }
+func (*skillRepositoryStub) GetSkillSourceFile(context.Context, uuid.UUID) ([]byte, error) {
+	return nil, domain.ErrNotFound
+}
 func (*skillRepositoryStub) ListSkills(context.Context, domain.PageOptions) ([]domain.Skill, error) {
 	return nil, nil
 }

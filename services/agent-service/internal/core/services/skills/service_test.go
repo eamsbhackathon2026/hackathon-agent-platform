@@ -1,6 +1,7 @@
 package skills
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
@@ -121,7 +122,15 @@ func (r *memorySkillRepository) GetSkill(_ context.Context, id uuid.UUID) (domai
 	if !ok {
 		return domain.Skill{}, domain.ErrNotFound
 	}
+	skill.SourceFileAvailable = len(skill.SourceFile) > 0
 	return skill, nil
+}
+func (r *memorySkillRepository) GetSkillSourceFile(_ context.Context, id uuid.UUID) ([]byte, error) {
+	skill, ok := r.skills[id]
+	if !ok || len(skill.SourceFile) == 0 {
+		return nil, domain.ErrNotFound
+	}
+	return skill.SourceFile, nil
 }
 func (r *memorySkillRepository) ListSkills(context.Context, domain.PageOptions) ([]domain.Skill, error) {
 	result := make([]domain.Skill, 0, len(r.skills))
@@ -150,4 +159,33 @@ func (r *memorySkillRepository) ResolveAgentSkills(_ context.Context, agentID uu
 		result = append(result, r.skills[id])
 	}
 	return result, nil
+}
+
+func TestDownloadSkillReturnsTheUploadOrTheStoredInstructions(t *testing.T) {
+	service, repository, _, admin := skillServiceFixture(t)
+	payload := zipPayload(t, []zipEntry{{name: "pack/SKILL.md", content: "# Pack\n\nFollow the guide."}, {name: "pack/reference.txt", content: "kept"}})
+	imported, err := service.ImportSkill(t.Context(), admin, inbound.SkillImportCommand{Filename: "pack.zip", Content: payload})
+	if err != nil || !imported.SourceFileAvailable {
+		t.Fatalf("imported=%+v err=%v", imported, err)
+	}
+	member := admin
+	member.Role = domain.RoleMember
+	file, err := service.DownloadSkill(t.Context(), member, imported.ID)
+	if err != nil || file.Filename != "pack.zip" || !bytes.Equal(file.Content, payload) {
+		t.Fatalf("file=%q len=%d err=%v", file.Filename, len(file.Content), err)
+	}
+
+	legacy := validSkill("Legacy", "# Legacy")
+	legacy.SourceType, legacy.SourceFilename = domain.SkillSourceZIP, "legacy-pack.zip"
+	repository.skills[legacy.ID] = legacy
+	file, err = service.DownloadSkill(t.Context(), member, legacy.ID)
+	if err != nil || file.Filename != "legacy-pack.md" || string(file.Content) != "# Legacy" {
+		t.Fatalf("legacy file=%+v err=%v", file, err)
+	}
+	if _, err = service.DownloadSkill(t.Context(), member, uuid.New()); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("missing err=%v", err)
+	}
+	if _, err = service.DownloadSkill(t.Context(), domain.Principal{Kind: domain.PrincipalAPIKey, APIKeyID: uuid.New()}, legacy.ID); !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("API key err=%v", err)
+	}
 }

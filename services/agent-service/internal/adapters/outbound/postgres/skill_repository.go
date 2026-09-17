@@ -22,9 +22,11 @@ func (s *Store) LockSkills(ctx context.Context) error {
 	return mapError(s.queries(ctx).LockSkills(ctx))
 }
 
-// CreateSkill persists a validated canonical skill document.
+// CreateSkill persists a validated canonical skill document and, when given, the
+// uploaded file. Callers run it inside a transaction so both rows land together.
 func (s *Store) CreateSkill(ctx context.Context, skill domain.Skill) error {
-	return mapError(s.queries(ctx).CreateSkill(ctx, sqlcgen.CreateSkillParams{
+	queries := s.queries(ctx)
+	err := queries.CreateSkill(ctx, sqlcgen.CreateSkillParams{
 		ID:             dbID(skill.ID),
 		Name:           skill.Name,
 		Description:    skill.Description,
@@ -36,7 +38,11 @@ func (s *Store) CreateSkill(ctx context.Context, skill domain.Skill) error {
 		CreatedBy:      dbID(skill.CreatedBy),
 		CreatedAt:      catalogTime(skill.CreatedAt),
 		UpdatedAt:      catalogTime(skill.UpdatedAt),
-	}))
+	})
+	if err != nil || len(skill.SourceFile) == 0 {
+		return mapError(err)
+	}
+	return mapError(queries.CreateSkillSourceFile(ctx, sqlcgen.CreateSkillSourceFileParams{SkillID: dbID(skill.ID), Content: skill.SourceFile}))
 }
 
 // GetSkill returns a skill by ID.
@@ -45,7 +51,15 @@ func (s *Store) GetSkill(ctx context.Context, id uuid.UUID) (domain.Skill, error
 	if err != nil {
 		return domain.Skill{}, mapError(err)
 	}
-	return skillModel(value)
+	skill, err := skillModel(value.Skill)
+	skill.SourceFileAvailable = value.SourceFileAvailable
+	return skill, err
+}
+
+// GetSkillSourceFile returns the uploaded file kept for a skill.
+func (s *Store) GetSkillSourceFile(ctx context.Context, id uuid.UUID) ([]byte, error) {
+	content, err := s.queries(ctx).GetSkillSourceFile(ctx, dbID(id))
+	return content, mapError(err)
 }
 
 // ListSkills returns the shared skill library using keyset pagination.
@@ -68,6 +82,8 @@ func (s *Store) ListSkills(ctx context.Context, options domain.PageOptions) ([]d
 			CreatedBy:      uuid.UUID(row.CreatedBy.Bytes),
 			CreatedAt:      row.CreatedAt.Time,
 			UpdatedAt:      row.UpdatedAt.Time,
+
+			SourceFileAvailable: row.SourceFileAvailable,
 		}
 	}
 	return result, nil

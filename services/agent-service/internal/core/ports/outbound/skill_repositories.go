@@ -13,6 +13,8 @@ type SkillRepository interface {
 	LockSkills(context.Context) error
 	CreateSkill(context.Context, domain.Skill) error
 	GetSkill(context.Context, uuid.UUID) (domain.Skill, error)
+	// GetSkillSourceFile returns the uploaded file, or ErrNotFound when it was not kept.
+	GetSkillSourceFile(context.Context, uuid.UUID) ([]byte, error)
 	ListSkills(context.Context, domain.PageOptions) ([]domain.Skill, error)
 	DeleteSkill(context.Context, uuid.UUID) error
 	GetAgentSkillBindings(context.Context, uuid.UUID) (domain.AgentSkillBindings, error)

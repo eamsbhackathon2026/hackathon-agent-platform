@@ -85,6 +85,13 @@ type ToolUseCase interface {
 	TestTool(context.Context, domain.Principal, uuid.UUID, json.RawMessage) (ToolTestResult, error)
 }
 
+// ToolTransferUseCase moves HTTP tools and their API connections between environments.
+type ToolTransferUseCase interface {
+	ExportTools(context.Context, domain.Principal) (domain.ToolBundle, error)
+	PreviewToolImport(context.Context, domain.Principal, domain.ToolBundle) ([]domain.ToolImportItem, error)
+	ImportTools(context.Context, domain.Principal, domain.ToolBundle, map[domain.ToolImportKey]domain.ToolImportAction) (domain.ToolImportResult, error)
+}
+
 // MCPServerCreateCommand contains a new MCP endpoint and write-only secret headers.
 type MCPServerCreateCommand struct {
 	Slug, DisplayName, URL string

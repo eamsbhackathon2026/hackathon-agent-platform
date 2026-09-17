@@ -71,6 +71,19 @@ func sessionDTO(session domain.Session) gen.Session {
 	return gen.Session{Id: session.ID, AgentId: session.AgentID, Source: gen.RunSource(session.Source), CreatedByUserId: nullableValue(session.CreatedByUserID), CreatedByApiKeyId: nullableValue(session.CreatedByAPIKeyID), ExternalKey: nullableValue(session.ExternalKey), Title: session.Title, CreatedAt: session.CreatedAt, UpdatedAt: session.UpdatedAt}
 }
 
+func sessionSummaryDTO(summary domain.SessionSummary) gen.SessionSummary {
+	dto := gen.SessionSummary{TurnCount: summary.TurnCount, FailedTurnCount: summary.FailedTurnCount, LatestRunId: nullableValue(summary.LatestRunID), Usage: usageDTO(summary.Usage), ProcessingMs: summary.ProcessingMS, FirstMessage: nullableValue(summary.FirstMessage), LastMessage: nullableValue(summary.LastMessage)}
+	dto.LatestRunStatus.SetNull()
+	if summary.LatestRunStatus != nil {
+		dto.LatestRunStatus.Set(gen.SessionSummaryLatestRunStatus(*summary.LatestRunStatus))
+	}
+	dto.LastMessageRole.SetNull()
+	if summary.LastMessageRole != nil {
+		dto.LastMessageRole.Set(gen.SessionSummaryLastMessageRole(*summary.LastMessageRole))
+	}
+	return dto
+}
+
 func messageDTO(message domain.Message) (gen.Message, error) {
 	calls := make([]gen.ToolCall, 0, len(message.ToolCalls))
 	for _, call := range message.ToolCalls {

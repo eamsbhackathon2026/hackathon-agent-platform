@@ -63,7 +63,8 @@ func contractMiddleware(contract routers.Router, resolver inbound.PrincipalResol
 			}
 			r = r.WithContext(context.WithValue(r.Context(), requestContextKey{}, info))
 			bodyLimit := int64(1 << 20)
-			if route.Operation.OperationID == "ImportSkill" {
+			switch route.Operation.OperationID {
+			case "ImportSkill", "PreviewToolImport", "ImportTools":
 				bodyLimit = 2<<20 + 64<<10
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, bodyLimit)

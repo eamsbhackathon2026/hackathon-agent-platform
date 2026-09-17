@@ -5,6 +5,7 @@ import type { RunSource, RunStatus } from "../model/types";
 
 export type RunFilters = {
   agentId?: string | undefined;
+  sessionId?: string | undefined;
   status?: RunStatus | undefined;
   source?: RunSource | undefined;
   from?: string | undefined;
@@ -12,11 +13,12 @@ export type RunFilters = {
   cursor?: string | undefined;
 };
 
-async function fetchRuns(filters: RunFilters, cursor?: string) {
+async function fetchRuns(filters: RunFilters, cursor?: string, limit = 25) {
   const { data, error } = await apiClient.GET("/v1/runs", { params: { query: {
-    limit: 25,
+    limit,
     ...(cursor ? { cursor } : {}),
     ...(filters.agentId ? { agent_id: filters.agentId } : {}),
+    ...(filters.sessionId ? { session_id: filters.sessionId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.source ? { source: filters.source } : {}),
     ...(filters.from ? { from: filters.from } : {}),
@@ -35,6 +37,13 @@ export const runQueries = {
     queryKey: ["runs", "infinite", filters] as const,
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => fetchRuns(filters, pageParam),
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
+  }),
+  /** Every request made in one conversation, newest first, in the largest pages the API allows. */
+  bySession: (sessionId: string) => infiniteQueryOptions({
+    queryKey: ["runs", "session", sessionId] as const,
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => fetchRuns({ sessionId }, pageParam, 100),
     getNextPageParam: (page) => page.next_cursor ?? undefined,
   }),
   detail: (id: string) => queryOptions({

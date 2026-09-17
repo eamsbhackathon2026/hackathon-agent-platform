@@ -807,6 +807,42 @@ paths:
               required:
               - file
               additionalProperties: false
+  /v1/skills/{skillId}/download:
+    get:
+      operationId: DownloadSkill
+      tags:
+      - skills
+      summary: Tải file skill
+      description: 'Trả đúng file đã upload (.md hoặc .zip). Skill import trước khi hệ thống lưu file gốc trả
+        nội dung SKILL.md đã lưu dưới dạng file .md. Quyền JWT tối thiểu: member.'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Thành công.
+          headers:
+            Content-Disposition:
+              description: Tên file tải về, gồm cả dạng filename* UTF-8.
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/ProblemResponse'
+        '400':
+          $ref: '#/components/responses/ProblemResponse'
+        '401':
+          $ref: '#/components/responses/ProblemResponse'
+        '403':
+          $ref: '#/components/responses/ProblemResponse'
+        '404':
+          $ref: '#/components/responses/ProblemResponse'
+      x-required-role: member
+      parameters:
+      - $ref: '#/components/parameters/skillId'
   /v1/skills/{skillId}:
     get:
       operationId: GetSkill
@@ -1128,6 +1164,91 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/HttpToolCreateRequest'
+  /v1/tools/export:
+    get:
+      operationId: ExportTools
+      tags:
+      - tools
+      summary: Xuất công cụ HTTP ra file
+      description: 'Trả toàn bộ công cụ HTTP cùng các kết nối API chúng dùng. Không chứa giá trị header bí mật, chỉ có tên header. Quyền JWT tối thiểu: member.'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Thành công.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolBundle'
+        default:
+          $ref: '#/components/responses/ProblemResponse'
+        '401':
+          $ref: '#/components/responses/ProblemResponse'
+        '403':
+          $ref: '#/components/responses/ProblemResponse'
+      x-required-role: member
+  /v1/tools/import/preview:
+    post:
+      operationId: PreviewToolImport
+      tags:
+      - tools
+      summary: Xem trước khi nhập công cụ HTTP
+      description: 'Kiểm tra file nhập và cho biết mục nào mới, mục nào trùng mã với dữ liệu đã có, mục nào không hợp lệ. Không ghi dữ liệu. Kích thước tối đa 2 MiB. Quyền JWT tối thiểu: admin.'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Thành công.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolImportPreview'
+        default:
+          $ref: '#/components/responses/ProblemResponse'
+        '400':
+          $ref: '#/components/responses/ProblemResponse'
+        '401':
+          $ref: '#/components/responses/ProblemResponse'
+        '403':
+          $ref: '#/components/responses/ProblemResponse'
+      x-required-role: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolBundle'
+  /v1/tools/import:
+    post:
+      operationId: ImportTools
+      tags:
+      - tools
+      summary: Nhập công cụ HTTP từ file
+      description: 'Tạo mới hoặc thay thế công cụ HTTP và kết nối API trong một giao dịch. Mỗi mục trùng mã phải có quyết định bỏ qua hoặc thay thế; nếu còn mục không hợp lệ thì không ghi gì. Kích thước tối đa 2 MiB. Quyền JWT tối thiểu: admin.'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Thành công.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolImportResult'
+        default:
+          $ref: '#/components/responses/ProblemResponse'
+        '400':
+          $ref: '#/components/responses/ProblemResponse'
+        '401':
+          $ref: '#/components/responses/ProblemResponse'
+        '403':
+          $ref: '#/components/responses/ProblemResponse'
+      x-required-role: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolImportRequest'
   /v1/tools/{toolId}:
     get:
       operationId: GetTool
@@ -1747,6 +1868,12 @@ paths:
           type: string
           format: uuid
         description: Lọc theo agent_id.
+      - name: session_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+        description: Chỉ trả các lần xử lý thuộc hội thoại này.
       - name: status
         in: query
         schema:
@@ -1928,6 +2055,18 @@ paths:
           - created_at
           - updated_at
         description: Thứ tự giảm dần dùng cho cursor. Bỏ trống tương đương created_at; phải giữ nguyên khi tải trang tiếp theo.
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date-time
+        description: 'Khoảng thời gian updated_at: from gồm đầu, to không gồm cuối; from phải nhỏ hơn to.'
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date-time
+        description: 'Khoảng thời gian updated_at: from gồm đầu, to không gồm cuối; from phải nhỏ hơn to.'
   /v1/sessions/{sessionId}:
     get:
       operationId: GetSession
@@ -3031,6 +3170,9 @@ components:
             type: string
             pattern: '^[A-Za-z]([A-Za-z0-9_-]{0,62}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9_-]{0,62}[A-Za-z0-9])?)?$'
           description: Công cụ skill khai báo bằng tiền tố $ trong phần hướng dẫn; dạng slug cho HTTP tool và server.tool cho MCP.
+        source_file_available:
+          type: boolean
+          description: true khi hệ thống còn giữ file đã upload; skill import trước đó chỉ tải được SKILL.md.
         created_by:
           type: string
           format: uuid
@@ -3048,6 +3190,7 @@ components:
       - source_filename
       - checksum
       - tool_refs
+      - source_file_available
       - created_by
       - created_at
       - updated_at
@@ -3474,6 +3617,237 @@ components:
       - secret_header_names
       - created_at
       - updated_at
+    ToolBundle:
+      type: object
+      properties:
+        format:
+          type: string
+          enum:
+          - agent-platform.tools
+        version:
+          type: integer
+          enum:
+          - 1
+        exported_at:
+          type: string
+          format: date-time
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolBundleConnection'
+          maxItems: 50
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolBundleTool'
+          maxItems: 200
+      required:
+      - format
+      - version
+      - connections
+      - tools
+      description: File cấu hình công cụ có version. Kết nối được tham chiếu bằng mã (slug), không bằng ID, và không bao giờ chứa giá trị header bí mật.
+    ToolBundleConnection:
+      type: object
+      properties:
+        slug:
+          type: string
+          pattern: ^[a-zA-Z0-9_-]{1,64}$
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        base_url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        public_headers:
+          type: object
+          additionalProperties:
+            type: string
+          maxProperties: 50
+        secret_header_names:
+          type: array
+          items:
+            type: string
+          maxItems: 50
+      required:
+      - slug
+      - display_name
+      - base_url
+      - public_headers
+      - secret_header_names
+    ToolBundleTool:
+      type: object
+      properties:
+        slug:
+          type: string
+          pattern: ^[a-zA-Z0-9_-]{1,64}$
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 4000
+        method:
+          type: string
+          enum:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+        url_template:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        connection_slug:
+          type: string
+          nullable: true
+          description: Mã kết nối API trong file hoặc đã có sẵn; null khi dùng URL tuyệt đối.
+        params:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolParam'
+          maxItems: 100
+        public_headers:
+          type: object
+          additionalProperties:
+            type: string
+          maxProperties: 50
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 60
+        secret_header_names:
+          type: array
+          items:
+            type: string
+          maxItems: 50
+      required:
+      - slug
+      - display_name
+      - description
+      - method
+      - url_template
+      - connection_slug
+      - params
+      - public_headers
+      - timeout_seconds
+      - secret_header_names
+    ToolImportKind:
+      type: string
+      enum:
+      - connection
+      - tool
+    ToolImportItem:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/ToolImportKind'
+        slug:
+          type: string
+        display_name:
+          type: string
+        status:
+          type: string
+          enum:
+          - new
+          - conflict
+          - invalid
+          description: new là mục chưa có; conflict là mục trùng mã với dữ liệu đã có; invalid là mục không nhập được.
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+      required:
+      - kind
+      - slug
+      - display_name
+      - status
+      - fields
+    ToolImportPreview:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolImportItem'
+      required:
+      - items
+    ToolImportDecision:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/ToolImportKind'
+        slug:
+          type: string
+        action:
+          type: string
+          enum:
+          - skip
+          - overwrite
+      required:
+      - kind
+      - slug
+      - action
+      additionalProperties: false
+    ToolImportRequest:
+      type: object
+      properties:
+        bundle:
+          $ref: '#/components/schemas/ToolBundle'
+        decisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolImportDecision'
+          maxItems: 250
+      required:
+      - bundle
+      - decisions
+      additionalProperties: false
+    ToolImportSecretReminder:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/ToolImportKind'
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        display_name:
+          type: string
+        header_names:
+          type: array
+          items:
+            type: string
+      required:
+      - kind
+      - id
+      - slug
+      - display_name
+      - header_names
+    ToolImportResult:
+      type: object
+      properties:
+        created:
+          type: integer
+        overwritten:
+          type: integer
+        skipped:
+          type: integer
+        needs_secrets:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolImportSecretReminder'
+          description: Các mục cần nhập lại giá trị header bí mật vì file không chứa giá trị.
+      required:
+      - created
+      - overwritten
+      - skipped
+      - needs_secrets
     ToolTestRequest:
       type: object
       properties:
@@ -4204,6 +4578,8 @@ components:
         updated_at:
           type: string
           format: date-time
+        summary:
+          $ref: '#/components/schemas/SessionSummary'
       required:
       - id
       - agent_id
@@ -4214,6 +4590,63 @@ components:
       - title
       - created_at
       - updated_at
+    SessionSummary:
+      type: object
+      description: Tổng hợp các lần xử lý và tin nhắn của hội thoại. Chỉ có trong danh sách hội thoại.
+      properties:
+        turn_count:
+          type: integer
+          minimum: 0
+          description: Số lần xử lý thuộc hội thoại.
+        failed_turn_count:
+          type: integer
+          minimum: 0
+          description: Số lần xử lý kết thúc với trạng thái failed.
+        latest_run_id:
+          type: string
+          format: uuid
+          nullable: true
+        latest_run_status:
+          type: string
+          enum:
+          - queued
+          - running
+          - succeeded
+          - failed
+          - cancelled
+          nullable: true
+          description: Trạng thái của lần xử lý gần nhất, cùng giá trị với RunStatus.
+        usage:
+          $ref: '#/components/schemas/RunUsage'
+        processing_ms:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Tổng thời gian xử lý (started_at đến finished_at) của các lần xử lý đã kết thúc.
+        first_message:
+          type: string
+          nullable: true
+          description: Tin nhắn người dùng đầu tiên, tối đa 200 ký tự.
+        last_message:
+          type: string
+          nullable: true
+          description: Tin nhắn có nội dung gần nhất của người dùng hoặc trợ lý, tối đa 200 ký tự.
+        last_message_role:
+          type: string
+          enum:
+          - user
+          - assistant
+          nullable: true
+      required:
+      - turn_count
+      - failed_turn_count
+      - latest_run_id
+      - latest_run_status
+      - usage
+      - processing_ms
+      - first_message
+      - last_message
+      - last_message_role
     ToolCall:
       type: object
       properties:

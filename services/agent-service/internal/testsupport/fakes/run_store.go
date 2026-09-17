@@ -3,6 +3,7 @@ package fakes
 import (
 	"context"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -82,7 +83,7 @@ func (s *RunStore) ListSessions(_ context.Context, options outbound.SessionListO
 	defer s.mu.Unlock()
 	items := []domain.Session{}
 	for _, value := range s.sessions {
-		if options.AgentID != nil && value.AgentID != *options.AgentID || options.Source != nil && value.Source != *options.Source || options.OwnerUserID != nil && (value.CreatedByUserID == nil || *value.CreatedByUserID != *options.OwnerUserID) || options.OwnerAPIKeyID != nil && (value.CreatedByAPIKeyID == nil || *value.CreatedByAPIKeyID != *options.OwnerAPIKeyID) {
+		if options.AgentID != nil && value.AgentID != *options.AgentID || options.Source != nil && value.Source != *options.Source || options.OwnerUserID != nil && (value.CreatedByUserID == nil || *value.CreatedByUserID != *options.OwnerUserID) || options.OwnerAPIKeyID != nil && (value.CreatedByAPIKeyID == nil || *value.CreatedByAPIKeyID != *options.OwnerAPIKeyID) || options.UpdatedFrom != nil && value.UpdatedAt.Before(*options.UpdatedFrom) || options.UpdatedTo != nil && !value.UpdatedAt.Before(*options.UpdatedTo) {
 			continue
 		}
 		if options.OrderByUpdatedAt {
@@ -101,6 +102,46 @@ func (s *RunStore) ListSessions(_ context.Context, options outbound.SessionListO
 		return newer(items[i].CreatedAt, items[i].ID, items[j].CreatedAt, items[j].ID)
 	})
 	return limitSessions(items, options.Limit), nil
+}
+
+// SummarizeSessions counts runs per conversation and previews the first and last
+// non-empty user or assistant messages.
+func (s *RunStore) SummarizeSessions(_ context.Context, ids []uuid.UUID) (map[uuid.UUID]domain.SessionSummary, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	result := make(map[uuid.UUID]domain.SessionSummary, len(ids))
+	for _, id := range ids {
+		summary := domain.SessionSummary{}
+		var latest *domain.Run
+		for _, run := range s.runs {
+			if run.SessionID != id {
+				continue
+			}
+			summary.TurnCount++
+			if run.Status == domain.RunFailed {
+				summary.FailedTurnCount++
+			}
+			if latest == nil || newer(run.CreatedAt, run.ID, latest.CreatedAt, latest.ID) {
+				value := run
+				latest = &value
+			}
+		}
+		if latest != nil {
+			summary.LatestRunID, summary.LatestRunStatus = &latest.ID, &latest.Status
+		}
+		for _, message := range s.messages[id] {
+			if message.Role != "user" && message.Role != "assistant" || strings.TrimSpace(message.Content) == "" {
+				continue
+			}
+			content, role := message.Content, message.Role
+			if summary.FirstMessage == nil && role == "user" {
+				summary.FirstMessage = &content
+			}
+			summary.LastMessage, summary.LastMessageRole = &content, &role
+		}
+		result[id] = summary
+	}
+	return result, nil
 }
 
 // HasActiveRuns reports unfinished executions for a conversation.
@@ -294,7 +335,7 @@ func (s *RunStore) ListRuns(_ context.Context, options outbound.RunListOptions) 
 	defer s.mu.Unlock()
 	items := []domain.Run{}
 	for _, value := range s.runs {
-		if options.AgentID != nil && value.AgentID != *options.AgentID || options.Status != nil && value.Status != *options.Status || options.Source != nil && value.Source != *options.Source || options.From != nil && value.CreatedAt.Before(*options.From) || options.To != nil && !value.CreatedAt.Before(*options.To) || options.OwnerUserID != nil && (value.TriggeredByUserID == nil || *value.TriggeredByUserID != *options.OwnerUserID) || options.OwnerAPIKeyID != nil && (value.TriggeredByAPIKeyID == nil || *value.TriggeredByAPIKeyID != *options.OwnerAPIKeyID) {
+		if options.AgentID != nil && value.AgentID != *options.AgentID || options.SessionID != nil && value.SessionID != *options.SessionID || options.Status != nil && value.Status != *options.Status || options.Source != nil && value.Source != *options.Source || options.From != nil && value.CreatedAt.Before(*options.From) || options.To != nil && !value.CreatedAt.Before(*options.To) || options.OwnerUserID != nil && (value.TriggeredByUserID == nil || *value.TriggeredByUserID != *options.OwnerUserID) || options.OwnerAPIKeyID != nil && (value.TriggeredByAPIKeyID == nil || *value.TriggeredByAPIKeyID != *options.OwnerAPIKeyID) {
 			continue
 		}
 		if options.Before != nil && !beforeDescending(value.CreatedAt, value.ID, *options.Before) {

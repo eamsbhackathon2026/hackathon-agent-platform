@@ -16,6 +16,7 @@ type ToolRepository interface {
 	GetTool(context.Context, uuid.UUID) (domain.HTTPTool, error)
 	GetToolForUpdate(context.Context, uuid.UUID) (domain.HTTPTool, error)
 	ListTools(context.Context, domain.PageOptions) ([]domain.HTTPTool, error)
+	ListAllTools(context.Context) ([]domain.HTTPTool, error)
 	UpdateTool(context.Context, domain.HTTPTool) error
 	DeleteTool(context.Context, uuid.UUID) error
 }
@@ -26,6 +27,7 @@ type APIConnectionRepository interface {
 	GetAPIConnection(context.Context, uuid.UUID) (domain.APIConnection, error)
 	GetAPIConnectionForUpdate(context.Context, uuid.UUID) (domain.APIConnection, error)
 	ListAPIConnections(context.Context, domain.PageOptions) ([]domain.APIConnection, error)
+	ListAllAPIConnections(context.Context) ([]domain.APIConnection, error)
 	UpdateAPIConnection(context.Context, domain.APIConnection) error
 	DeleteAPIConnection(context.Context, uuid.UUID) error
 	CountToolsByAPIConnection(context.Context, uuid.UUID) (int64, error)

@@ -177,15 +177,30 @@ func (s *Service) TestTool(ctx context.Context, principal domain.Principal, id u
 }
 
 func (s *Service) validateHTTPTool(ctx context.Context, tool domain.HTTPTool, secrets map[string]string) error {
+	// Field errors come before the connection lookup so a bad form still gets field details.
+	if err := domain.ValidateHTTPTool(tool, secrets); err != nil {
+		return err
+	}
+	var connection *domain.APIConnection
+	if tool.ConnectionID != nil {
+		saved, err := s.Connections.GetAPIConnection(ctx, *tool.ConnectionID)
+		if err != nil {
+			return err
+		}
+		connection = &saved
+	}
+	return s.validateHTTPToolWith(tool, secrets, connection)
+}
+
+// validateHTTPToolWith checks a tool against an explicit connection, which may not be
+// saved yet when it arrives in the same import bundle as the tool.
+func (s *Service) validateHTTPToolWith(tool domain.HTTPTool, secrets map[string]string, connection *domain.APIConnection) error {
 	if err := domain.ValidateHTTPTool(tool, secrets); err != nil {
 		return err
 	}
 	resolvedURL := tool.URLTemplate
-	if tool.ConnectionID != nil {
-		connection, err := s.Connections.GetAPIConnection(ctx, *tool.ConnectionID)
-		if err != nil {
-			return err
-		}
+	if connection != nil {
+		var err error
 		resolvedURL, err = domain.JoinAPIConnectionURL(connection.BaseURL, tool.URLTemplate)
 		if err != nil {
 			return err

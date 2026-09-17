@@ -2,6 +2,7 @@ package inbound
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -25,11 +26,15 @@ type SessionListRequest struct {
 	Source   *domain.RunSource
 	MineOnly bool
 	Sort     SessionSort
+	// From and To bound the latest activity time: From is inclusive, To exclusive.
+	From, To *time.Time
 }
 
 // SessionPage contains one descending conversation page.
 type SessionPage struct {
-	Items      []domain.Session
+	Items []domain.Session
+	// Summaries is keyed by conversation ID and covers every item on the page.
+	Summaries  map[uuid.UUID]domain.SessionSummary
 	NextCursor *string
 }
 

@@ -11,7 +11,7 @@ import { AgentToolDraftProvider } from "../model";
 import { AgentSkillsPanel } from "./agent-skills-panel";
 import { AgentToolsPanel } from "./agent-tools-panel";
 
-const skill = { id: "20000000-0000-4000-8000-000000000002", name: "Clear writing", description: "Use plain language.", source_type: "markdown" as const, source_filename: "writing.md", checksum: "0".repeat(64), tool_refs: [], created_by: "10000000-0000-4000-8000-000000000001", created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" };
+const skill = { id: "20000000-0000-4000-8000-000000000002", name: "Clear writing", description: "Use plain language.", source_type: "markdown" as const, source_filename: "writing.md", checksum: "0".repeat(64), tool_refs: [], source_file_available: false, created_by: "10000000-0000-4000-8000-000000000001", created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" };
 
 const httpTool = (id: string, slug: string) => ({ id, kind: "http" as const, slug, display_name: `Tool ${slug}`, description: "", method: "GET" as const, url_template: `/${slug}`, connection_id: null, params: [], public_headers: {}, secret_header_names: [], timeout_seconds: 15, created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" });
 

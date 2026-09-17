@@ -43,9 +43,9 @@ func (s *Store) ListSessions(ctx context.Context, p outbound.SessionListOptions)
 	var err error
 	if p.OrderByUpdatedAt {
 		updatedBefore, updatedBeforeID := optionalSessionUpdatedCursor(p.BeforeUpdated)
-		rows, err = s.queries(ctx).ListSessionsByUpdatedAt(ctx, sqlcgen.ListSessionsByUpdatedAtParams{AgentID: optionalID(p.AgentID), Source: textValue(p.Source), OwnerUserID: optionalID(p.OwnerUserID), OwnerApiKeyID: optionalID(p.OwnerAPIKeyID), BeforeUpdatedAt: updatedBefore, BeforeID: updatedBeforeID, Limit: limit})
+		rows, err = s.queries(ctx).ListSessionsByUpdatedAt(ctx, sqlcgen.ListSessionsByUpdatedAtParams{AgentID: optionalID(p.AgentID), Source: textValue(p.Source), OwnerUserID: optionalID(p.OwnerUserID), OwnerApiKeyID: optionalID(p.OwnerAPIKeyID), UpdatedFrom: optionalTime(p.UpdatedFrom), UpdatedTo: optionalTime(p.UpdatedTo), BeforeUpdatedAt: updatedBefore, BeforeID: updatedBeforeID, Limit: limit})
 	} else {
-		rows, err = s.queries(ctx).ListSessions(ctx, sqlcgen.ListSessionsParams{AgentID: optionalID(p.AgentID), Source: textValue(p.Source), OwnerUserID: optionalID(p.OwnerUserID), OwnerApiKeyID: optionalID(p.OwnerAPIKeyID), BeforeTime: before, BeforeID: beforeID, Limit: limit})
+		rows, err = s.queries(ctx).ListSessions(ctx, sqlcgen.ListSessionsParams{AgentID: optionalID(p.AgentID), Source: textValue(p.Source), OwnerUserID: optionalID(p.OwnerUserID), OwnerApiKeyID: optionalID(p.OwnerAPIKeyID), UpdatedFrom: optionalTime(p.UpdatedFrom), UpdatedTo: optionalTime(p.UpdatedTo), BeforeTime: before, BeforeID: beforeID, Limit: limit})
 	}
 	if err != nil {
 		return nil, mapError(err)

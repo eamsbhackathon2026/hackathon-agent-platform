@@ -10,6 +10,8 @@ SELECT * FROM tools WHERE id=$1 FOR UPDATE;
 -- name: ListTools :many
 SELECT * FROM tools WHERE (sqlc.narg(before_time)::timestamptz IS NULL OR (created_at,id) < (sqlc.narg(before_time)::timestamptz, sqlc.narg(before_id)::uuid))
 ORDER BY created_at DESC,id DESC LIMIT $1;
+-- name: ListAllTools :many
+SELECT * FROM tools ORDER BY slug;
 -- name: UpdateTool :execrows
 UPDATE tools SET connection_id=$2,slug=$3,display_name=$4,description=$5,method=$6,url_template=$7,params=$8,public_headers=$9,secret_headers_ciphertext=$10,secret_header_names=$11,timeout_seconds=$12,updated_at=$13
 WHERE id=$1;

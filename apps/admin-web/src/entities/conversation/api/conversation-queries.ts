@@ -9,6 +9,9 @@ export type ConversationFilters = {
   source?: ListSessionsQuery["source"] | undefined;
   scope?: ListSessionsQuery["scope"] | undefined;
   sort?: ListSessionsQuery["sort"] | undefined;
+  /** Latest-activity window: `from` is inclusive, `to` exclusive. */
+  from?: ListSessionsQuery["from"] | undefined;
+  to?: ListSessionsQuery["to"] | undefined;
   cursor?: ListSessionsQuery["cursor"] | undefined;
 };
 
@@ -36,6 +39,8 @@ async function fetchConversations(filters: ConversationFilters, cursor?: string)
     ...(filters.source ? { source: filters.source } : {}),
     ...(filters.scope ? { scope: filters.scope } : {}),
     ...(filters.sort ? { sort: filters.sort } : {}),
+    ...(filters.from ? { from: filters.from } : {}),
+    ...(filters.to ? { to: filters.to } : {}),
   } } });
   if (!data) throw error;
   return data;
