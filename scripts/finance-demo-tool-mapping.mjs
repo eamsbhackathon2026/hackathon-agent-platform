@@ -94,59 +94,62 @@ function describe(name, manifestSource, ...candidates) {
   return titleFrom(name, ...candidates);
 }
 
-// Nhãn tiến trình: câu khách đọc trong lúc trợ lý chạy công cụ. Viết tay chứ không
-// suy ra từ mô tả manifest, vì mô tả ở đó vừa lẫn lộn cụm danh từ với cụm động từ
-// ("Lịch sử giao dịch…" bên cạnh "Chấm điểm rủi ro…"), vừa đầy khái niệm nội bộ
-// (digital twin, baseline, persona, playbook, decision_id) mà khách không cần biết.
-// Ghép máy móc sẽ cho ra câu sai ngữ pháp hoặc lộ thứ không nên lộ.
+// Nhãn tiến trình: cụm động từ KHÔNG chủ ngữ, không viết hoa chữ đầu. Giao diện
+// ghép hai vế từ cùng một chuỗi — "Em đang xem lịch sử giao dịch…" lúc trợ lý
+// đang chạy và "Em đã xem lịch sử giao dịch và tổng hợp thu chi." khi kể lại —
+// nên nhãn viết thành câu đủ chủ ngữ sẽ đọc thành "Em đang Em xem…".
+//
+// Viết tay chứ không suy ra từ mô tả manifest, vì mô tả ở đó vừa lẫn lộn cụm danh
+// từ với cụm động từ, vừa đầy khái niệm nội bộ (digital twin, baseline, persona,
+// playbook, decision_id) mà khách không cần biết.
 //
 // Công cụ mới chưa có trong bảng này nhận chuỗi rỗng, và nền tảng sẽ rơi về tên
 // hiển thị — xấu hơn nhưng không sai. Sửa nhanh một nhãn thì vào màn công cụ của
 // admin, bảng này chỉ là giá trị khởi tạo.
 export const STEP_LABELS = {
-  get_transactions: 'Đang xem lịch sử giao dịch của bạn',
-  get_monthly_summary: 'Đang tổng hợp thu chi theo tháng',
-  get_cashflow_forecast: 'Đang dự báo dòng tiền các tháng tới',
-  get_baseline_metrics: 'Đang xem thói quen chi tiêu của bạn',
-  create_transaction: 'Đang ghi nhận giao dịch',
-  update_transaction_status: 'Đang cập nhật trạng thái giao dịch',
-  get_insights: 'Đang xem nhận định chi tiêu của kỳ này',
-  generate_insights: 'Đang phân tích lại chi tiêu trong kỳ',
-  list_products: 'Đang xem các sản phẩm đang mở bán',
-  generate_recommendations: 'Đang tìm gợi ý tích lũy phù hợp với bạn',
-  get_recommendations: 'Đang xem các gợi ý đã đưa cho bạn',
-  update_recommendation: 'Đang ghi nhận lựa chọn của bạn',
-  list_customers: 'Đang tra danh sách khách hàng',
-  get_customer: 'Đang xem hồ sơ khách hàng',
-  get_portfolio: 'Đang xem toàn cảnh tài chính của bạn',
-  get_accounts: 'Đang xem số dư tài khoản của bạn',
-  get_baseline: 'Đang xem thói quen giao dịch thường ngày',
-  recompute_baseline: 'Đang cập nhật lại thói quen giao dịch',
-  resolve_beneficiary: 'Đang tra thông tin người nhận',
-  list_beneficiaries: 'Đang xem sổ người nhận của bạn',
-  set_beneficiary_status: 'Đang đánh dấu người nhận đáng ngờ',
-  list_recent_events: 'Đang xem các thay đổi gần đây trên tài khoản',
-  create_event: 'Đang ghi nhận thay đổi trên tài khoản',
-  precheck_transfer: 'Đang kiểm tra rủi ro của lệnh chuyển tiền',
-  record_intervention: 'Đang ghi nhận câu trả lời của bạn',
-  take_action: 'Đang thực hiện hành động bạn chọn',
-  get_decision: 'Đang xem lại kết quả kiểm tra rủi ro',
-  list_decisions: 'Đang tra lịch sử cảnh báo rủi ro',
-  ops_summary: 'Đang tổng hợp số liệu vận hành',
-  ops_decision_log: 'Đang xem nhật ký cảnh báo',
-  list_scams: 'Đang tra danh sách thủ đoạn lừa đảo',
-  get_scam: 'Đang xem chi tiết một thủ đoạn lừa đảo',
-  match_scam: 'Đang đối chiếu với các thủ đoạn lừa đảo đã biết',
-  get_questions: 'Đang chuẩn bị câu hỏi xác minh',
-  record_action: 'Đang ghi nhận hành động bảo vệ',
-  create_case: 'Đang mở yêu cầu hỗ trợ cho bạn',
-  list_cases: 'Đang xem các yêu cầu hỗ trợ',
-  update_case: 'Đang cập nhật yêu cầu hỗ trợ',
-  submit_feedback: 'Đang ghi nhận phản hồi',
-  apply_feedback: 'Đang cập nhật hệ thống theo phản hồi',
-  send_notification: 'Đang gửi thông báo cho bạn',
-  log_llm_call: 'Đang ghi nhật ký kiểm toán',
-  llm_trace_stats: 'Đang xem thống kê chất lượng trả lời',
+  get_transactions: 'xem lịch sử giao dịch của anh/chị',
+  get_monthly_summary: 'tổng hợp thu chi theo tháng',
+  get_cashflow_forecast: 'dự báo dòng tiền các tháng tới',
+  get_baseline_metrics: 'xem thói quen chi tiêu của anh/chị',
+  create_transaction: 'ghi nhận giao dịch',
+  update_transaction_status: 'cập nhật trạng thái giao dịch',
+  get_insights: 'xem nhận định chi tiêu của kỳ này',
+  generate_insights: 'phân tích lại chi tiêu trong kỳ',
+  list_products: 'xem các sản phẩm đang mở bán',
+  generate_recommendations: 'tìm gợi ý tích lũy phù hợp với anh/chị',
+  get_recommendations: 'xem các gợi ý đã đưa cho anh/chị',
+  update_recommendation: 'ghi nhận lựa chọn của anh/chị',
+  list_customers: 'tra danh sách khách hàng',
+  get_customer: 'xem hồ sơ khách hàng',
+  get_portfolio: 'xem toàn cảnh tài chính của anh/chị',
+  get_accounts: 'xem số dư tài khoản của anh/chị',
+  get_baseline: 'xem thói quen giao dịch thường ngày',
+  recompute_baseline: 'cập nhật lại thói quen giao dịch',
+  resolve_beneficiary: 'tra thông tin người nhận',
+  list_beneficiaries: 'xem sổ người nhận của anh/chị',
+  set_beneficiary_status: 'đánh dấu người nhận đáng ngờ',
+  list_recent_events: 'xem các thay đổi gần đây trên tài khoản',
+  create_event: 'ghi nhận thay đổi trên tài khoản',
+  precheck_transfer: 'kiểm tra rủi ro của lệnh chuyển tiền',
+  record_intervention: 'ghi nhận câu trả lời của anh/chị',
+  take_action: 'thực hiện hành động anh/chị chọn',
+  get_decision: 'xem lại kết quả kiểm tra rủi ro',
+  list_decisions: 'tra lịch sử cảnh báo rủi ro',
+  ops_summary: 'tổng hợp số liệu vận hành',
+  ops_decision_log: 'xem nhật ký cảnh báo',
+  list_scams: 'tra danh sách thủ đoạn lừa đảo',
+  get_scam: 'xem chi tiết một thủ đoạn lừa đảo',
+  match_scam: 'đối chiếu với các thủ đoạn lừa đảo đã biết',
+  get_questions: 'chuẩn bị câu hỏi xác minh',
+  record_action: 'ghi nhận hành động bảo vệ',
+  create_case: 'mở yêu cầu hỗ trợ cho anh/chị',
+  list_cases: 'xem các yêu cầu hỗ trợ',
+  update_case: 'cập nhật yêu cầu hỗ trợ',
+  submit_feedback: 'ghi nhận phản hồi',
+  apply_feedback: 'cập nhật hệ thống theo phản hồi',
+  send_notification: 'gửi thông báo cho anh/chị',
+  log_llm_call: 'ghi nhật ký kiểm toán',
+  llm_trace_stats: 'xem thống kê chất lượng trả lời',
 };
 
 /** Câu đầu của mô tả, dùng làm nhãn hiển thị; cắt theo ranh giới từ. */
