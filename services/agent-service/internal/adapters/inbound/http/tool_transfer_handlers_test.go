@@ -77,10 +77,10 @@ func TestToolTransferEndpoints(t *testing.T) {
 	if bundle.Format != "agent-platform.tools" || len(bundle.Tools) != 1 || len(bundle.Connections) != 1 || bundle.Tools[0].ConnectionSlug.MustGet() != "orders" {
 		t.Fatalf("bundle=%s", exported.Body.String())
 	}
-	// Nhãn bước phải đi trọn đường request → lưu → export, nếu không thì môi
-	// trường đích nhận về một bộ công cụ câm.
+	// The step label has to survive request → store → export, or the target
+	// environment receives a mute set of tools.
 	if bundle.Tools[0].StepLabel == nil || *bundle.Tools[0].StepLabel != "Đang tra cứu" {
-		t.Fatalf("bundle mất nhãn bước: %s", exported.Body.String())
+		t.Fatalf("the bundle lost the step label: %s", exported.Body.String())
 	}
 
 	f.request(t, "POST", "/v1/tools/import/preview", exported.Body.String(), identityBearer("member"), 403)

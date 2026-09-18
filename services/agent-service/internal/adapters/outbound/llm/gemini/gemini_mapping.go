@@ -10,6 +10,14 @@ import (
 
 func mapRequest(req domain.LLMRequest) ([]*genai.Content, *genai.GenerateContentConfig, error) {
 	config := &genai.GenerateContentConfig{HTTPOptions: &genai.HTTPOptions{ExtrasRequestProvider: restoreEmptyTextParts}}
+	// Thought summaries cost output tokens and not every product wants to narrate
+	// what the assistant is thinking, so the agent decides. Without this the model
+	// still thinks but says nothing about it, and a caller that wants to show
+	// progress has only tool calls to go by. What comes back is Google's summary of
+	// the thinking, not the raw chain of thought — the part fit to show a customer.
+	if req.IncludeThoughts {
+		config.ThinkingConfig = &genai.ThinkingConfig{IncludeThoughts: true}
+	}
 	if req.Model == "" {
 		return nil, nil, domain.ErrProviderBadRequest
 	}

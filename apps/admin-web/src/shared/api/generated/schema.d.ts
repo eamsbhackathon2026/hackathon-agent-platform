@@ -1238,6 +1238,11 @@ export interface components {
             /** @description Giới hạn token đầu ra. Nếu bỏ trống, runtime áp dụng mức tối đa bảo thủ và gửi đúng mức đó tới provider. Giá trị phải chừa 10% safety margin và ít nhất 1.024 token cho input. */
             max_output_tokens?: number | null;
             /**
+             * @description Bật thì trợ lý xin nhà cung cấp phần TÓM TẮT suy nghĩ và phát ra dưới dạng sự kiện reasoning.delta trong lúc chạy, để người gọi kể lại tiến trình. Không đổi câu trả lời và không vào transcript. Nhà cung cấp không hỗ trợ thì cờ này không có tác dụng gì.
+             * @default false
+             */
+            show_thinking: boolean;
+            /**
              * @description Tổng dung lượng token dành cho instructions, tools, hội thoại và câu trả lời. Runtime tự tóm tắt lịch sử khi gần giới hạn này.
              * @default 32768
              */
@@ -1257,6 +1262,8 @@ export interface components {
             temperature?: number | null;
             /** @description Giới hạn token đầu ra. Giá trị phải chừa 10% safety margin và ít nhất 1.024 token cho input. */
             max_output_tokens?: number | null;
+            /** @description Bật thì trợ lý xin nhà cung cấp phần TÓM TẮT suy nghĩ và phát ra dưới dạng sự kiện reasoning.delta trong lúc chạy, để người gọi kể lại tiến trình. Không đổi câu trả lời và không vào transcript. Nhà cung cấp không hỗ trợ thì cờ này không có tác dụng gì. */
+            show_thinking?: boolean;
             /** @description Tổng dung lượng token dành cho instructions, tools, hội thoại và câu trả lời. */
             context_window_tokens?: number;
             max_iterations?: number;
@@ -1274,6 +1281,8 @@ export interface components {
             temperature: number | null;
             /** @description Giới hạn token đầu ra đã lưu; null nghĩa là runtime áp dụng mức tối đa bảo thủ phù hợp với dung lượng hội thoại. */
             max_output_tokens: number | null;
+            /** @description Bật thì trợ lý xin nhà cung cấp phần TÓM TẮT suy nghĩ và phát ra dưới dạng sự kiện reasoning.delta trong lúc chạy, để người gọi kể lại tiến trình. Không đổi câu trả lời và không vào transcript. Nhà cung cấp không hỗ trợ thì cờ này không có tác dụng gì. */
+            show_thinking: boolean;
             /**
              * @description Tổng dung lượng token dành cho instructions, tools, hội thoại và câu trả lời.
              * @default 32768
@@ -1977,6 +1986,20 @@ export interface components {
             type: "message.delta";
             text: string;
         };
+        ReasoningDeltaEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "reasoning.delta";
+            /** @description Một mẩu suy nghĩ của mô hình, phát dần trong lúc nó nghĩ. KHÔNG phải câu trả lời: nội dung này không nằm trong message.delta, không vào transcript và không có trong output của run. */
+            text: string;
+            /**
+             * @description summary = bản tóm tắt nhà cung cấp viết ra để hiển thị (Gemini). raw = nguyên văn chuỗi suy luận (đường OpenAI-compatible): thường bằng tiếng Anh bất kể ngôn ngữ hội thoại, dài, và chứa cả bản nháp mô hình tự chấm — đừng đưa thẳng cho người dùng cuối, dùng nó để biết mô hình còn đang chạy thì đúng hơn.
+             * @enum {string}
+             */
+            kind: "summary" | "raw";
+        };
         ToolStartedEvent: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -2026,7 +2049,7 @@ export interface components {
             error: components["schemas"]["RunError"];
         };
         /** @description SSE event name trùng type. run.failed cũng biểu diễn cancelled với error.code=run_cancelled. Không hỗ trợ resume. */
-        RunEvent: components["schemas"]["RunStartedEvent"] | components["schemas"]["MessageDeltaEvent"] | components["schemas"]["ToolStartedEvent"] | components["schemas"]["ToolFinishedEvent"] | components["schemas"]["MessageCompletedEvent"] | components["schemas"]["RunCompletedEvent"] | components["schemas"]["RunFailedEvent"];
+        RunEvent: components["schemas"]["RunStartedEvent"] | components["schemas"]["MessageDeltaEvent"] | components["schemas"]["ReasoningDeltaEvent"] | components["schemas"]["ToolStartedEvent"] | components["schemas"]["ToolFinishedEvent"] | components["schemas"]["MessageCompletedEvent"] | components["schemas"]["RunCompletedEvent"] | components["schemas"]["RunFailedEvent"];
         RunWebhookPayload: {
             /** @enum {string} */
             type: "run.completed" | "run.failed" | "run.cancelled";

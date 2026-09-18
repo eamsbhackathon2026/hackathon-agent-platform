@@ -29,8 +29,8 @@ func (q *Queries) ArchiveAgent(ctx context.Context, arg ArchiveAgentParams) (int
 }
 
 const createAgent = `-- name: CreateAgent :exec
-INSERT INTO agents (id,name,description,provider_id,model,system_prompt,temperature,max_output_tokens,context_window_tokens,max_iterations,timeout_seconds,created_by,archived_at,created_at,updated_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+INSERT INTO agents (id,name,description,provider_id,model,system_prompt,temperature,max_output_tokens,show_thinking,context_window_tokens,max_iterations,timeout_seconds,created_by,archived_at,created_at,updated_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
 `
 
 type CreateAgentParams struct {
@@ -42,6 +42,7 @@ type CreateAgentParams struct {
 	SystemPrompt        string             `json:"system_prompt"`
 	Temperature         pgtype.Float8      `json:"temperature"`
 	MaxOutputTokens     pgtype.Int4        `json:"max_output_tokens"`
+	ShowThinking        bool               `json:"show_thinking"`
 	ContextWindowTokens int32              `json:"context_window_tokens"`
 	MaxIterations       int32              `json:"max_iterations"`
 	TimeoutSeconds      int32              `json:"timeout_seconds"`
@@ -61,6 +62,7 @@ func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) error 
 		arg.SystemPrompt,
 		arg.Temperature,
 		arg.MaxOutputTokens,
+		arg.ShowThinking,
 		arg.ContextWindowTokens,
 		arg.MaxIterations,
 		arg.TimeoutSeconds,
@@ -123,7 +125,7 @@ func (q *Queries) DeleteProvider(ctx context.Context, id pgtype.UUID) (int64, er
 }
 
 const getAgent = `-- name: GetAgent :one
-SELECT id, name, description, provider_id, model, system_prompt, temperature, max_output_tokens, max_iterations, timeout_seconds, created_by, archived_at, created_at, updated_at, context_window_tokens FROM agents WHERE id=$1 AND archived_at IS NULL
+SELECT id, name, description, provider_id, model, system_prompt, temperature, max_output_tokens, max_iterations, timeout_seconds, created_by, archived_at, created_at, updated_at, context_window_tokens, show_thinking FROM agents WHERE id=$1 AND archived_at IS NULL
 `
 
 func (q *Queries) GetAgent(ctx context.Context, id pgtype.UUID) (Agent, error) {
@@ -145,12 +147,13 @@ func (q *Queries) GetAgent(ctx context.Context, id pgtype.UUID) (Agent, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ContextWindowTokens,
+		&i.ShowThinking,
 	)
 	return i, err
 }
 
 const getAgentForUpdate = `-- name: GetAgentForUpdate :one
-SELECT id, name, description, provider_id, model, system_prompt, temperature, max_output_tokens, max_iterations, timeout_seconds, created_by, archived_at, created_at, updated_at, context_window_tokens FROM agents WHERE id=$1 AND archived_at IS NULL FOR UPDATE
+SELECT id, name, description, provider_id, model, system_prompt, temperature, max_output_tokens, max_iterations, timeout_seconds, created_by, archived_at, created_at, updated_at, context_window_tokens, show_thinking FROM agents WHERE id=$1 AND archived_at IS NULL FOR UPDATE
 `
 
 func (q *Queries) GetAgentForUpdate(ctx context.Context, id pgtype.UUID) (Agent, error) {
@@ -172,6 +175,7 @@ func (q *Queries) GetAgentForUpdate(ctx context.Context, id pgtype.UUID) (Agent,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ContextWindowTokens,
+		&i.ShowThinking,
 	)
 	return i, err
 }
@@ -227,7 +231,7 @@ func (q *Queries) GetProviderForUpdate(ctx context.Context, id pgtype.UUID) (Llm
 }
 
 const listAgents = `-- name: ListAgents :many
-SELECT id, name, description, provider_id, model, system_prompt, temperature, max_output_tokens, max_iterations, timeout_seconds, created_by, archived_at, created_at, updated_at, context_window_tokens FROM agents WHERE archived_at IS NULL AND ($2::timestamptz IS NULL OR (created_at,id) < ($2::timestamptz, $3::uuid))
+SELECT id, name, description, provider_id, model, system_prompt, temperature, max_output_tokens, max_iterations, timeout_seconds, created_by, archived_at, created_at, updated_at, context_window_tokens, show_thinking FROM agents WHERE archived_at IS NULL AND ($2::timestamptz IS NULL OR (created_at,id) < ($2::timestamptz, $3::uuid))
 ORDER BY created_at DESC,id DESC LIMIT $1
 `
 
@@ -262,6 +266,7 @@ func (q *Queries) ListAgents(ctx context.Context, arg ListAgentsParams) ([]Agent
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ContextWindowTokens,
+			&i.ShowThinking,
 		); err != nil {
 			return nil, err
 		}
@@ -384,7 +389,7 @@ func (q *Queries) RecordProviderCheck(ctx context.Context, arg RecordProviderChe
 }
 
 const updateAgent = `-- name: UpdateAgent :execrows
-UPDATE agents SET name=$2,description=$3,provider_id=$4,model=$5,system_prompt=$6,temperature=$7,max_output_tokens=$8,context_window_tokens=$9,max_iterations=$10,timeout_seconds=$11,updated_at=$12
+UPDATE agents SET name=$2,description=$3,provider_id=$4,model=$5,system_prompt=$6,temperature=$7,max_output_tokens=$8,show_thinking=$9,context_window_tokens=$10,max_iterations=$11,timeout_seconds=$12,updated_at=$13
 WHERE id=$1 AND archived_at IS NULL
 `
 
@@ -397,6 +402,7 @@ type UpdateAgentParams struct {
 	SystemPrompt        string             `json:"system_prompt"`
 	Temperature         pgtype.Float8      `json:"temperature"`
 	MaxOutputTokens     pgtype.Int4        `json:"max_output_tokens"`
+	ShowThinking        bool               `json:"show_thinking"`
 	ContextWindowTokens int32              `json:"context_window_tokens"`
 	MaxIterations       int32              `json:"max_iterations"`
 	TimeoutSeconds      int32              `json:"timeout_seconds"`
@@ -413,6 +419,7 @@ func (q *Queries) UpdateAgent(ctx context.Context, arg UpdateAgentParams) (int64
 		arg.SystemPrompt,
 		arg.Temperature,
 		arg.MaxOutputTokens,
+		arg.ShowThinking,
 		arg.ContextWindowTokens,
 		arg.MaxIterations,
 		arg.TimeoutSeconds,

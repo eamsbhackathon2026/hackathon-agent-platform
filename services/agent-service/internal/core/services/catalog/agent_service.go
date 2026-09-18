@@ -13,7 +13,7 @@ func (s *Service) CreateAgent(ctx context.Context, p domain.Principal, c inbound
 	if err = domain.Authorize(p, domain.ActionResourcesWrite, nil); err != nil {
 		return
 	}
-	a := domain.Agent{Name: c.Name, Description: c.Description, ProviderID: c.ProviderID, Model: c.Model, SystemPrompt: c.SystemPrompt, Temperature: c.Temperature, MaxOutputTokens: c.MaxOutputTokens, ContextWindowTokens: domain.DefaultContextWindowTokens, MaxIterations: 8, TimeoutSeconds: 120, CreatedBy: p.UserID, CreatedAt: s.Clock.Now(), UpdatedAt: s.Clock.Now()}
+	a := domain.Agent{Name: c.Name, Description: c.Description, ProviderID: c.ProviderID, Model: c.Model, SystemPrompt: c.SystemPrompt, Temperature: c.Temperature, MaxOutputTokens: c.MaxOutputTokens, ShowThinking: c.ShowThinking != nil && *c.ShowThinking, ContextWindowTokens: domain.DefaultContextWindowTokens, MaxIterations: 8, TimeoutSeconds: 120, CreatedBy: p.UserID, CreatedAt: s.Clock.Now(), UpdatedAt: s.Clock.Now()}
 	if c.ContextWindowTokens != nil {
 		a.ContextWindowTokens = *c.ContextWindowTokens
 	}
@@ -70,6 +70,9 @@ func (s *Service) UpdateAgent(ctx context.Context, p domain.Principal, id uuid.U
 		}
 		if c.Temperature.Set {
 			a.Temperature = c.Temperature.Value
+		}
+		if c.ShowThinking != nil {
+			a.ShowThinking = *c.ShowThinking
 		}
 		if c.MaxOutputTokens.Set {
 			a.MaxOutputTokens = c.MaxOutputTokens.Value

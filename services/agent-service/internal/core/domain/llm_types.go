@@ -45,6 +45,8 @@ type ChatMessage struct {
 
 // LLMRequest is shared by synchronous collection and streaming generation.
 type LLMRequest struct {
+	// IncludeThoughts asks for thought summaries where the provider offers them.
+	IncludeThoughts     bool
 	Model, SystemPrompt string
 	Messages            []ChatMessage
 	Tools               []ToolSpec
@@ -52,8 +54,28 @@ type LLMRequest struct {
 	MaxOutputTokens     *int
 }
 
+// ReasoningKind says what a provider hands over when it reports its own thinking,
+// because the two kinds are not interchangeable. A summary is written to be shown.
+// Raw reasoning is the model talking to itself: measured on GLM over GreenNode it
+// came back in English for a Vietnamese conversation, five times longer than the
+// answer, and carried the draft reply the model then graded. Anything facing an
+// end user wants the first and not the second.
+type ReasoningKind string
+
+// Kinds of reasoning a provider can report.
+const (
+	ReasoningSummary ReasoningKind = "summary"
+	ReasoningRaw     ReasoningKind = "raw"
+)
+
 // LLMDelta contains public text only; tool arguments are emitted only when complete.
-type LLMDelta struct{ Text string }
+// Reasoning carries a provider's account of its own thinking, which is a different
+// kind of text from the answer: it is never part of the reply and never persisted
+// into the transcript, so a delta sets one field or the other, never both.
+type LLMDelta struct {
+	Text, Reasoning string
+	ReasoningKind   ReasoningKind
+}
 
 // TokenUsage preserves missing provider usage as nil rather than inventing zeros.
 type TokenUsage struct{ InputTokens, OutputTokens *int }

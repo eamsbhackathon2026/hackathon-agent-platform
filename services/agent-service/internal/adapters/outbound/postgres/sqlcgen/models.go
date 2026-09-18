@@ -24,6 +24,7 @@ type Agent struct {
 	CreatedAt           pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 	ContextWindowTokens int32              `json:"context_window_tokens"`
+	ShowThinking        bool               `json:"show_thinking"`
 }
 
 type AgentMcpServer struct {

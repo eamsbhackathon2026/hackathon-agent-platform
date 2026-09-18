@@ -10,6 +10,9 @@ const (
 	EventRunStarted RunEventType = "run.started"
 	// EventMessageDelta carries one public text fragment.
 	EventMessageDelta RunEventType = "message.delta"
+	// EventReasoningDelta carries one fragment of the provider's summary of its own
+	// thinking. It is not part of the answer and is never persisted.
+	EventReasoningDelta RunEventType = "reasoning.delta"
 	// EventToolStarted precedes one tool invocation.
 	EventToolStarted RunEventType = "tool.started"
 	// EventToolFinished follows one tool invocation.
@@ -27,6 +30,7 @@ type RunEvent struct {
 	Type             RunEventType
 	RunID, SessionID uuid.UUID
 	Text             string
+	ReasoningKind    ReasoningKind
 	CallID, ToolName string
 	DisplayName      string
 	OK               bool

@@ -121,6 +121,7 @@ func TestCatalogArchivePreservesHistory(t *testing.T) {
 	tokens := 512
 	a.Temperature = &temperature
 	a.MaxOutputTokens = &tokens
+	a.ShowThinking = true
 	if err := s.CreateAgent(ctx, a); err != nil {
 		t.Fatal(err)
 	}
@@ -130,6 +131,21 @@ func TestCatalogArchivePreservesHistory(t *testing.T) {
 	}
 	if saved.Temperature == nil || *saved.Temperature != temperature || saved.MaxOutputTokens == nil || *saved.MaxOutputTokens != tokens || saved.ContextWindowTokens != domain.DefaultContextWindowTokens {
 		t.Fatalf("nullable settings: %+v", saved)
+	}
+	// A column added later slips out of INSERT/UPDATE easily: only a read-back tells.
+	if !saved.ShowThinking {
+		t.Fatalf("the thinking flag was not stored: %+v", saved)
+	}
+	saved.ShowThinking = false
+	if err = s.UpdateAgent(ctx, saved); err != nil {
+		t.Fatal(err)
+	}
+	if again, agErr := s.GetAgent(ctx, a.ID); agErr != nil || again.ShowThinking {
+		t.Fatalf("turning the flag off did not persist: %+v err=%v", again, agErr)
+	}
+	saved.ShowThinking = true
+	if err = s.UpdateAgent(ctx, saved); err != nil {
+		t.Fatal(err)
 	}
 	duplicate := a
 	duplicate.ID = uuid.New()

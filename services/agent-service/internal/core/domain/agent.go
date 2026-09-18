@@ -53,12 +53,15 @@ func EffectiveMaxOutputTokens(agent Agent) int {
 
 // Agent is a saved assistant configuration; archived records retain history.
 type Agent struct {
-	ID                            uuid.UUID
-	Name, Description             string
-	ProviderID                    uuid.UUID
-	Model, SystemPrompt           string
-	Temperature                   *float64
-	MaxOutputTokens               *int
+	ID                  uuid.UUID
+	Name, Description   string
+	ProviderID          uuid.UUID
+	Model, SystemPrompt string
+	Temperature         *float64
+	MaxOutputTokens     *int
+	// ShowThinking asks the provider for a summary of its own thinking so callers
+	// can narrate progress. It never changes the answer.
+	ShowThinking                  bool
 	ContextWindowTokens           int
 	MaxIterations, TimeoutSeconds int
 	CreatedBy                     uuid.UUID

@@ -33,14 +33,15 @@ func TestRunStreamAnnouncesToolsWithTheirConfiguredLabel(t *testing.T) {
 		t.Fatalf("run=%+v err=%v", run, err)
 	}
 	if len(started) != 1 {
-		t.Fatalf("sự kiện tool.started=%d", len(started))
+		t.Fatalf("tool.started events=%d", len(started))
 	}
 	if started[0].DisplayName != "Đang đọc chi tiêu theo tháng" {
-		t.Fatalf("nhãn phát ra %q", started[0].DisplayName)
+		t.Fatalf("emitted label %q", started[0].DisplayName)
 	}
-	// Tên kỹ thuật vẫn phải đi kèm: người gọi cần nó để đối chiếu, chỉ là không đem hiện.
+	// The provider-facing name still travels: a caller needs it to correlate, it is
+	// only the thing not to display.
 	if started[0].ToolName != "http_get_monthly_summary" {
-		t.Fatalf("tên công cụ %q", started[0].ToolName)
+		t.Fatalf("tool name %q", started[0].ToolName)
 	}
 }
 
@@ -63,6 +64,6 @@ func TestRunStreamFallsBackToToolNameWhenNoSpecDeclaresIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	if label != "http_missing" {
-		t.Fatalf("nhãn dự phòng %q", label)
+		t.Fatalf("fallback label %q", label)
 	}
 }

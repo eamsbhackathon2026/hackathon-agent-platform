@@ -8,6 +8,7 @@ export const agentFormSchema = z.object({
   system_prompt: z.string().max(100_000),
   temperature: z.number().min(0).max(2).nullable(),
   max_output_tokens: z.number().int().positive().nullable(),
+  show_thinking: z.boolean(),
   context_window_tokens: z.number().int().min(8_192).max(2_000_000),
   max_iterations: z.number().int().min(1, "Minimum 1 step").max(25, "Maximum 25 steps"),
   timeout_seconds: z.number().int().min(10, "Minimum 10 seconds").max(600, "Maximum 600 seconds"),

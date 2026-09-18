@@ -76,6 +76,7 @@ func agentModel(v sqlcgen.Agent) domain.Agent {
 	if v.Temperature.Valid {
 		a.Temperature = &v.Temperature.Float64
 	}
+	a.ShowThinking = v.ShowThinking
 	if v.MaxOutputTokens.Valid {
 		n := int(v.MaxOutputTokens.Int32)
 		a.MaxOutputTokens = &n

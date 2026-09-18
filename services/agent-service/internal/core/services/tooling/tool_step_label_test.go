@@ -47,15 +47,15 @@ func TestResolveCarriesTheConfiguredStepLabelIntoSpecs(t *testing.T) {
 		labels[spec.Ref] = spec.DisplayName
 	}
 	if labels["weather"] != "Đang xem thời tiết" {
-		t.Fatalf("nhãn bước không tới spec: %q", labels["weather"])
+		t.Fatalf("step label never reached the spec: %q", labels["weather"])
 	}
-	// Chưa đặt nhãn bước thì tên trong danh mục vẫn đọc được, miễn là không rơi
-	// xuống tên kỹ thuật.
+	// With no step label the catalog name still reads acceptably, as long as it does
+	// not fall through to the provider-facing name.
 	if labels["forecast"] != "Dự báo" {
-		t.Fatalf("thiếu nhãn bước phải rơi về tên hiển thị, nhận %q", labels["forecast"])
+		t.Fatalf("missing step label must fall back to the display name, got %q", labels["forecast"])
 	}
-	// domain.MCPTool không mang nhãn nào, nên tên server là thứ gần người đọc nhất.
+	// domain.MCPTool carries no label, so the server name is the closest thing to one.
 	if labels["office.search"] != "Văn phòng" {
-		t.Fatalf("tool MCP phải mang tên server, nhận %q", labels["office.search"])
+		t.Fatalf("an MCP tool must carry the server name, got %q", labels["office.search"])
 	}
 }

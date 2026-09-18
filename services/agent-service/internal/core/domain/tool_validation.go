@@ -44,16 +44,16 @@ func ValidateHTTPTool(tool HTTPTool, secretHeaders map[string]string) error {
 	if err := catalogText("display_name", tool.DisplayName, 1, 200); err != nil {
 		return err
 	}
-	// Giới hạn đếm trên phần đã cắt khoảng trắng hai đầu, vì người đọc chỉ thấy
-	// phần đó — bên gọi cũng cắt như vậy trước khi hiện.
+	// The limit counts the trimmed value because that is all a reader sees, and
+	// callers trim the same way before showing it.
 	if err := catalogText("step_label", strings.TrimSpace(tool.StepLabel), 0, 80); err != nil {
 		return err
 	}
-	// Kiểm tra trên chuỗi GỐC: TrimSpace đã nuốt mất ký tự xuống dòng ở hai đầu.
-	// Nhãn bước hiện trên một dòng của danh sách đang chạy, nên ký tự điều khiển,
-	// ký tự tách dòng và ký tự định dạng vô hình chỉ làm vỡ bố cục hoặc đảo chiều
-	// chữ. Chuỗi ở đây không phải lúc nào cũng do người vận hành gõ: bundle công
-	// cụ nhập từ môi trường khác cũng đi qua đúng cửa này.
+	// Check the ORIGINAL value: TrimSpace has already eaten a newline at either
+	// end. A step label occupies one line of a running list, so control runes, line
+	// separators and invisible formatting runes can only break the layout or
+	// reverse the text. What arrives here is not always typed by an operator: a
+	// tool bundle imported from another environment comes through this same gate.
 	if runeOutsideOneLine(tool.StepLabel) {
 		return Invalid("step_label", "Nhãn bước phải nằm gọn trên một dòng và không chứa ký tự vô hình.")
 	}

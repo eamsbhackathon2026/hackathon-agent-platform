@@ -34,7 +34,7 @@ func (h *CatalogHandler) CreateAgent(ctx context.Context, r gen.CreateAgentReque
 	if r.Body == nil {
 		return nil, domain.ErrValidation
 	}
-	c := inbound.AgentCreateCommand{Name: r.Body.Name, Description: stringValue(r.Body.Description), ProviderID: r.Body.ProviderId, Model: r.Body.Model, SystemPrompt: stringValue(r.Body.SystemPrompt), Temperature: temperatureValue(r.Body.Temperature), MaxOutputTokens: valuePointer(r.Body.MaxOutputTokens), ContextWindowTokens: r.Body.ContextWindowTokens, MaxIterations: r.Body.MaxIterations, TimeoutSeconds: r.Body.TimeoutSeconds}
+	c := inbound.AgentCreateCommand{Name: r.Body.Name, Description: stringValue(r.Body.Description), ProviderID: r.Body.ProviderId, Model: r.Body.Model, SystemPrompt: stringValue(r.Body.SystemPrompt), Temperature: temperatureValue(r.Body.Temperature), MaxOutputTokens: valuePointer(r.Body.MaxOutputTokens), ShowThinking: r.Body.ShowThinking, ContextWindowTokens: r.Body.ContextWindowTokens, MaxIterations: r.Body.MaxIterations, TimeoutSeconds: r.Body.TimeoutSeconds}
 	a, err := h.agents.CreateAgent(ctx, requestFrom(ctx).principal, c)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func (h *CatalogHandler) UpdateAgent(ctx context.Context, r gen.UpdateAgentReque
 	if r.Body == nil {
 		return nil, domain.ErrValidation
 	}
-	c := inbound.AgentUpdateCommand{Name: r.Body.Name, Description: r.Body.Description, ProviderID: r.Body.ProviderId, Model: r.Body.Model, SystemPrompt: r.Body.SystemPrompt, Temperature: domain.Change[float64]{Set: r.Body.Temperature.IsSpecified(), Value: temperatureValue(r.Body.Temperature)}, MaxOutputTokens: changeValue(r.Body.MaxOutputTokens), ContextWindowTokens: r.Body.ContextWindowTokens, MaxIterations: r.Body.MaxIterations, TimeoutSeconds: r.Body.TimeoutSeconds}
+	c := inbound.AgentUpdateCommand{Name: r.Body.Name, Description: r.Body.Description, ProviderID: r.Body.ProviderId, Model: r.Body.Model, SystemPrompt: r.Body.SystemPrompt, Temperature: domain.Change[float64]{Set: r.Body.Temperature.IsSpecified(), Value: temperatureValue(r.Body.Temperature)}, MaxOutputTokens: changeValue(r.Body.MaxOutputTokens), ShowThinking: r.Body.ShowThinking, ContextWindowTokens: r.Body.ContextWindowTokens, MaxIterations: r.Body.MaxIterations, TimeoutSeconds: r.Body.TimeoutSeconds}
 	a, err := h.agents.UpdateAgent(ctx, requestFrom(ctx).principal, r.AgentId, c)
 	if err != nil {
 		return nil, err

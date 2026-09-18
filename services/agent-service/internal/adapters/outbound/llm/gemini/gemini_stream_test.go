@@ -61,13 +61,30 @@ func TestToolCallsAndSignaturesRoundTrip(t *testing.T) {
 				}
 				writeSSE(w, `{"candidates":[{"content":{"parts":[{"text":"Done"}]},"finishReason":"STOP"}]}`)
 			})
-			var deltas []string
-			first, err := client.Stream(context.Background(), request(), func(delta domain.LLMDelta) { deltas = append(deltas, delta.Text) })
+			var deltas, thoughts []string
+			first, err := client.Stream(context.Background(), request(), func(delta domain.LLMDelta) {
+				if delta.Reasoning != "" {
+					if delta.ReasoningKind != domain.ReasoningSummary {
+						t.Fatalf("reasoning kind: %q", delta.ReasoningKind)
+					}
+					thoughts = append(thoughts, delta.Reasoning)
+					return
+				}
+				deltas = append(deltas, delta.Text)
+			})
 			if err != nil {
 				t.Fatal(err)
 			}
 			if first.Text != "Checking weather." || !reflect.DeepEqual(deltas, []string{"Checking ", "weather."}) {
 				t.Fatalf("public output: %#v %#v", first.Text, deltas)
+			}
+			// A thought part travels separately and never joins the answer, or the
+			// model's private reasoning would be read out to whoever asked.
+			if !reflect.DeepEqual(thoughts, []string{"private reasoning"}) {
+				t.Fatalf("thought summaries: %#v", thoughts)
+			}
+			if strings.Contains(first.Text, "private reasoning") {
+				t.Fatalf("thought leaked into the answer: %q", first.Text)
 			}
 			if len(first.ToolCalls) != 3 || first.ToolCalls[0].ID == "" || first.ToolCalls[0].ID == first.ToolCalls[1].ID || first.ToolCalls[2].ID != "provided-id" {
 				t.Fatalf("calls: %#v", first.ToolCalls)

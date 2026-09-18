@@ -29,7 +29,7 @@ func agentDTO(view domain.AgentView) gen.Agent {
 		v := float32(*a.Temperature)
 		temperature = &v
 	}
-	return gen.Agent{Id: a.ID, Name: a.Name, Description: a.Description, ProviderId: a.ProviderID, Model: a.Model, SystemPrompt: a.SystemPrompt, Temperature: nullableValue(temperature), MaxOutputTokens: nullableValue(a.MaxOutputTokens), ContextWindowTokens: a.ContextWindowTokens, MaxIterations: a.MaxIterations, TimeoutSeconds: a.TimeoutSeconds, CreatedBy: a.CreatedBy, ArchivedAt: nullableValue(a.ArchivedAt), CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt, Ready: view.Ready, ReadinessError: failureValue(view.ReadinessError)}
+	return gen.Agent{Id: a.ID, Name: a.Name, Description: a.Description, ProviderId: a.ProviderID, Model: a.Model, SystemPrompt: a.SystemPrompt, Temperature: nullableValue(temperature), MaxOutputTokens: nullableValue(a.MaxOutputTokens), ShowThinking: a.ShowThinking, ContextWindowTokens: a.ContextWindowTokens, MaxIterations: a.MaxIterations, TimeoutSeconds: a.TimeoutSeconds, CreatedBy: a.CreatedBy, ArchivedAt: nullableValue(a.ArchivedAt), CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt, Ready: view.Ready, ReadinessError: failureValue(view.ReadinessError)}
 }
 
 func valuePointer[T any](value nullable.Nullable[T]) *T {

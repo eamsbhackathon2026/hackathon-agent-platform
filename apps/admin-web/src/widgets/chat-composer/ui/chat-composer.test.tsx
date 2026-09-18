@@ -8,7 +8,7 @@ import { ChatComposer } from "./chat-composer";
 
 const baseAgent = {
   description: "", provider_id: "provider-1", model: "model", system_prompt: "", temperature: null,
-  max_output_tokens: null, context_window_tokens: 128000, max_iterations: 8, timeout_seconds: 120, created_by: "user-1", archived_at: null,
+  max_output_tokens: null, show_thinking: false, context_window_tokens: 128000, max_iterations: 8, timeout_seconds: 120, created_by: "user-1", archived_at: null,
   created_at: "2026-09-17T00:00:00Z", updated_at: "2026-09-17T00:00:00Z", readiness_error: null,
 } satisfies Omit<Agent, "id" | "name" | "ready">;
 

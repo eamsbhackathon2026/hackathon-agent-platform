@@ -113,6 +113,8 @@ func eventDTO(event domain.RunEvent) (gen.RunEvent, error) {
 		return result, result.FromRunStartedEvent(gen.RunStartedEvent{Type: gen.RunStarted, RunId: event.RunID, SessionId: event.SessionID})
 	case domain.EventMessageDelta:
 		return result, result.FromMessageDeltaEvent(gen.MessageDeltaEvent{Type: gen.MessageDelta, Text: event.Text})
+	case domain.EventReasoningDelta:
+		return result, result.FromReasoningDeltaEvent(gen.ReasoningDeltaEvent{Type: gen.ReasoningDelta, Text: event.Text, Kind: gen.ReasoningDeltaEventKind(event.ReasoningKind)})
 	case domain.EventToolStarted:
 		return result, result.FromToolStartedEvent(gen.ToolStartedEvent{Type: gen.ToolStarted, CallId: event.CallID, ToolName: event.ToolName, DisplayName: event.DisplayName})
 	case domain.EventToolFinished:

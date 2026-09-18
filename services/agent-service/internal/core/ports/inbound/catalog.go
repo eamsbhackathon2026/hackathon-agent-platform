@@ -58,6 +58,7 @@ type AgentCreateCommand struct {
 	Model, SystemPrompt                  string
 	Temperature                          *float64
 	MaxOutputTokens, ContextWindowTokens *int
+	ShowThinking                         *bool
 	MaxIterations, TimeoutSeconds        *int
 }
 
@@ -67,6 +68,7 @@ type AgentUpdateCommand struct {
 	ProviderID                             *uuid.UUID
 	Temperature                            domain.Change[float64]
 	MaxOutputTokens                        domain.Change[int]
+	ShowThinking                           *bool
 	ContextWindowTokens                    *int
 	MaxIterations, TimeoutSeconds          *int
 }

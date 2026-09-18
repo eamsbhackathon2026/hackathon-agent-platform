@@ -55,6 +55,11 @@ func (c *Client) Stream(ctx context.Context, req domain.LLMRequest, onDelta func
 				}
 				index := len(meta.Parts)
 				meta.Parts = append(meta.Parts, part)
+				if part.Text != "" && onDelta != nil && part.Thought {
+					// A thought summary explains the answer; it is not the answer,
+					// so it never joins result.Text and never reaches the transcript.
+					onDelta(domain.LLMDelta{Reasoning: part.Text, ReasoningKind: domain.ReasoningSummary})
+				}
 				if !part.Thought && part.Text != "" {
 					result.Text += part.Text
 					if onDelta != nil {

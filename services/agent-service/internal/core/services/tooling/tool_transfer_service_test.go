@@ -23,8 +23,9 @@ func connectedToolFixture(t *testing.T) (serviceFixture, domain.APIConnection, d
 	command := validToolCommand()
 	command.ConnectionID = &connection.ID
 	command.URLTemplate = "/weather/{city}"
-	// Nhãn bước đi trong bundle: mất nó khi chuyển môi trường thì người vận hành
-	// phải gõ lại 43 câu, và cho tới lúc gõ xong khách đọc nhãn của danh mục.
+	// The step label travels in the bundle: losing it on the way to another
+	// environment means an operator retypes every label by hand, and until they do,
+	// customers read the catalog name.
 	command.StepLabel = "Đang xem thời tiết"
 	tool, err := fixture.service.CreateTool(t.Context(), fixture.admin, command)
 	if err != nil {

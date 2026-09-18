@@ -102,8 +102,17 @@ func (s *Service) iterate(ctx context.Context, agent domain.Agent, client outbou
 		}
 		state.promptEstimate = budget.rawEstimate
 		state.calibrationSaved = false
-		result, callErr := client.Stream(ctx, domain.LLMRequest{Model: agent.Model, SystemPrompt: agent.SystemPrompt, Messages: requestMessages, Tools: requestTools, Temperature: agent.Temperature, MaxOutputTokens: agent.MaxOutputTokens}, func(delta domain.LLMDelta) {
-			if delta.Text != "" && ctx.Err() == nil {
+		result, callErr := client.Stream(ctx, domain.LLMRequest{Model: agent.Model, SystemPrompt: agent.SystemPrompt, Messages: requestMessages, Tools: requestTools, Temperature: agent.Temperature, MaxOutputTokens: agent.MaxOutputTokens, IncludeThoughts: agent.ShowThinking}, func(delta domain.LLMDelta) {
+			if ctx.Err() != nil {
+				return
+			}
+			// Gemini sends a summary only when asked, while a model reached over an
+			// OpenAI-compatible endpoint narrates whether or not anyone asked, so the
+			// gate lives here and covers every provider.
+			if delta.Reasoning != "" && agent.ShowThinking {
+				emit(domain.RunEvent{Type: domain.EventReasoningDelta, Text: delta.Reasoning, ReasoningKind: delta.ReasoningKind})
+			}
+			if delta.Text != "" {
 				emit(domain.RunEvent{Type: domain.EventMessageDelta, Text: delta.Text})
 			}
 		})

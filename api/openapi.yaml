@@ -2976,6 +2976,10 @@ components:
           minimum: 1
           nullable: true
           description: Giới hạn token đầu ra. Nếu bỏ trống, runtime áp dụng mức tối đa bảo thủ và gửi đúng mức đó tới provider. Giá trị phải chừa 10% safety margin và ít nhất 1.024 token cho input.
+        show_thinking:
+          type: boolean
+          default: false
+          description: 'Bật thì trợ lý xin nhà cung cấp phần TÓM TẮT suy nghĩ và phát ra dưới dạng sự kiện reasoning.delta trong lúc chạy, để người gọi kể lại tiến trình. Không đổi câu trả lời và không vào transcript. Nhà cung cấp không hỗ trợ thì cờ này không có tác dụng gì.'
         context_window_tokens:
           type: integer
           minimum: 8192
@@ -3027,6 +3031,9 @@ components:
           minimum: 1
           nullable: true
           description: Giới hạn token đầu ra. Giá trị phải chừa 10% safety margin và ít nhất 1.024 token cho input.
+        show_thinking:
+          type: boolean
+          description: 'Bật thì trợ lý xin nhà cung cấp phần TÓM TẮT suy nghĩ và phát ra dưới dạng sự kiện reasoning.delta trong lúc chạy, để người gọi kể lại tiến trình. Không đổi câu trả lời và không vào transcript. Nhà cung cấp không hỗ trợ thì cờ này không có tác dụng gì.'
         context_window_tokens:
           type: integer
           minimum: 8192
@@ -3074,6 +3081,9 @@ components:
           minimum: 1
           nullable: true
           description: Giới hạn token đầu ra đã lưu; null nghĩa là runtime áp dụng mức tối đa bảo thủ phù hợp với dung lượng hội thoại.
+        show_thinking:
+          type: boolean
+          description: 'Bật thì trợ lý xin nhà cung cấp phần TÓM TẮT suy nghĩ và phát ra dưới dạng sự kiện reasoning.delta trong lúc chạy, để người gọi kể lại tiến trình. Không đổi câu trả lời và không vào transcript. Nhà cung cấp không hỗ trợ thì cờ này không có tác dụng gì.'
         context_window_tokens:
           type: integer
           minimum: 8192
@@ -3127,6 +3137,7 @@ components:
       - system_prompt
       - temperature
       - max_output_tokens
+      - show_thinking
       - context_window_tokens
       - max_iterations
       - timeout_seconds
@@ -4826,6 +4837,26 @@ components:
       required:
       - type
       - text
+    ReasoningDeltaEvent:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - reasoning.delta
+        text:
+          type: string
+          description: 'Một mẩu suy nghĩ của mô hình, phát dần trong lúc nó nghĩ. KHÔNG phải câu trả lời: nội dung này không nằm trong message.delta, không vào transcript và không có trong output của run.'
+        kind:
+          type: string
+          enum:
+          - summary
+          - raw
+          description: 'summary = bản tóm tắt nhà cung cấp viết ra để hiển thị (Gemini). raw = nguyên văn chuỗi suy luận (đường OpenAI-compatible): thường bằng tiếng Anh bất kể ngôn ngữ hội thoại, dài, và chứa cả bản nháp mô hình tự chấm — đừng đưa thẳng cho người dùng cuối, dùng nó để biết mô hình còn đang chạy thì đúng hơn.'
+      required:
+      - type
+      - text
+      - kind
     ToolStartedEvent:
       type: object
       properties:
@@ -4909,6 +4940,7 @@ components:
       oneOf:
       - $ref: '#/components/schemas/RunStartedEvent'
       - $ref: '#/components/schemas/MessageDeltaEvent'
+      - $ref: '#/components/schemas/ReasoningDeltaEvent'
       - $ref: '#/components/schemas/ToolStartedEvent'
       - $ref: '#/components/schemas/ToolFinishedEvent'
       - $ref: '#/components/schemas/MessageCompletedEvent'
@@ -4919,6 +4951,7 @@ components:
         mapping:
           run.started: '#/components/schemas/RunStartedEvent'
           message.delta: '#/components/schemas/MessageDeltaEvent'
+          reasoning.delta: '#/components/schemas/ReasoningDeltaEvent'
           tool.started: '#/components/schemas/ToolStartedEvent'
           tool.finished: '#/components/schemas/ToolFinishedEvent'
           message.completed: '#/components/schemas/MessageCompletedEvent'

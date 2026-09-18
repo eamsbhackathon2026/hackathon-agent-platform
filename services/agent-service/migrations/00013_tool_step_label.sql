@@ -1,9 +1,10 @@
 -- +goose Up
--- Nhãn hiện cho người dùng cuối trong lúc trợ lý chạy công cụ. Tách khỏi
--- display_name vì hai chỗ đọc khác nhau: display_name là tên trong danh mục
--- công cụ của người vận hành, còn nhãn này chạy qua mắt khách hàng giữa một
--- câu trả lời đang hình thành, nên câu chữ phải ngắn và ở thì đang diễn ra.
--- Công cụ có sẵn giữ chuỗi rỗng và rơi về display_name, nên không cần backfill.
+-- The label an end user reads while the assistant runs this tool. Separate from
+-- display_name because the two are read in different places: display_name names
+-- the tool in an operator's catalog, while this one passes a customer's eyes in
+-- the middle of an answer taking shape, so it stays short and in the present
+-- tense. Existing tools keep an empty string and fall back to display_name, so
+-- nothing needs backfilling.
 ALTER TABLE tools ADD COLUMN step_label text NOT NULL DEFAULT '';
 
 -- +goose Down

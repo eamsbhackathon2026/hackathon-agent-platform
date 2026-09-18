@@ -52,19 +52,20 @@ func TestToolingRepositoriesRoundTripAndCAS(t *testing.T) {
 	if err = store.UpdateTool(ctx, tool); err != nil {
 		t.Fatal(err)
 	}
-	// Cột được thêm sau nên dễ lọt khỏi câu UPDATE: ghi xong đọc lại mới biết.
+	// A column added later slips out of UPDATE easily: only a read-back tells.
 	if updated, updateErr := store.GetTool(ctx, tool.ID); updateErr != nil || updated.StepLabel != "Đang xem dự báo" {
-		t.Fatalf("nhãn bước sau khi sửa=%q err=%v", updated.StepLabel, updateErr)
+		t.Fatalf("step label after update=%q err=%v", updated.StepLabel, updateErr)
 	}
-	// Công cụ lưu trước khi có cột này đọc ra chuỗi rỗng chứ không phải NULL, nhờ
-	// DEFAULT '' của migration; bên gọi vì thế rơi về tên hiển thị thay vì vỡ.
+	// A tool saved before this column existed reads back as an empty string rather
+	// than NULL, thanks to the migration's DEFAULT '', so callers fall back to the
+	// display name instead of breaking.
 	bare := tool
 	bare.ID, bare.Slug, bare.StepLabel = uuid.New(), "bare", ""
 	if err = store.CreateTool(ctx, bare); err != nil {
 		t.Fatal(err)
 	}
 	if got, bareErr := store.GetTool(ctx, bare.ID); bareErr != nil || got.StepLabel != "" {
-		t.Fatalf("nhãn bước của công cụ chưa đặt=%q err=%v", got.StepLabel, bareErr)
+		t.Fatalf("step label of an unlabelled tool=%q err=%v", got.StepLabel, bareErr)
 	}
 	empty := []string{}
 	gotServer.AllowedTools = &empty

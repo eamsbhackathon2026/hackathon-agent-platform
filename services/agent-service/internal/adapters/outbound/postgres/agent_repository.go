@@ -26,7 +26,7 @@ func (s *Store) CreateAgent(ctx context.Context, v domain.Agent) error {
 	if err != nil {
 		return err
 	}
-	return mapError(s.queries(ctx).CreateAgent(ctx, sqlcgen.CreateAgentParams{ID: dbID(v.ID), Name: v.Name, Description: v.Description, ProviderID: agentProviderID(v.ProviderID), Model: v.Model, SystemPrompt: v.SystemPrompt, Temperature: floatValue(v.Temperature), MaxOutputTokens: tokens, ContextWindowTokens: int32(v.ContextWindowTokens), MaxIterations: int32(v.MaxIterations), TimeoutSeconds: int32(v.TimeoutSeconds), CreatedBy: dbID(v.CreatedBy), ArchivedAt: optionalTime(v.ArchivedAt), CreatedAt: catalogTime(v.CreatedAt), UpdatedAt: catalogTime(v.UpdatedAt)}))
+	return mapError(s.queries(ctx).CreateAgent(ctx, sqlcgen.CreateAgentParams{ID: dbID(v.ID), Name: v.Name, Description: v.Description, ProviderID: agentProviderID(v.ProviderID), Model: v.Model, SystemPrompt: v.SystemPrompt, Temperature: floatValue(v.Temperature), MaxOutputTokens: tokens, ShowThinking: v.ShowThinking, ContextWindowTokens: int32(v.ContextWindowTokens), MaxIterations: int32(v.MaxIterations), TimeoutSeconds: int32(v.TimeoutSeconds), CreatedBy: dbID(v.CreatedBy), ArchivedAt: optionalTime(v.ArchivedAt), CreatedAt: catalogTime(v.CreatedAt), UpdatedAt: catalogTime(v.UpdatedAt)}))
 }
 
 // GetAgent returns only an active assistant.
@@ -64,7 +64,7 @@ func (s *Store) UpdateAgent(ctx context.Context, v domain.Agent) error {
 	if err != nil {
 		return err
 	}
-	return affected(s.queries(ctx).UpdateAgent(ctx, sqlcgen.UpdateAgentParams{ID: dbID(v.ID), Name: v.Name, Description: v.Description, ProviderID: agentProviderID(v.ProviderID), Model: v.Model, SystemPrompt: v.SystemPrompt, Temperature: floatValue(v.Temperature), MaxOutputTokens: tokens, ContextWindowTokens: int32(v.ContextWindowTokens), MaxIterations: int32(v.MaxIterations), TimeoutSeconds: int32(v.TimeoutSeconds), UpdatedAt: catalogTime(v.UpdatedAt)}))
+	return affected(s.queries(ctx).UpdateAgent(ctx, sqlcgen.UpdateAgentParams{ID: dbID(v.ID), Name: v.Name, Description: v.Description, ProviderID: agentProviderID(v.ProviderID), Model: v.Model, SystemPrompt: v.SystemPrompt, Temperature: floatValue(v.Temperature), MaxOutputTokens: tokens, ShowThinking: v.ShowThinking, ContextWindowTokens: int32(v.ContextWindowTokens), MaxIterations: int32(v.MaxIterations), TimeoutSeconds: int32(v.TimeoutSeconds), UpdatedAt: catalogTime(v.UpdatedAt)}))
 }
 
 // ArchiveAgent hides an assistant while preserving its historical ID.
