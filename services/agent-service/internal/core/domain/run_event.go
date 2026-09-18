@@ -33,9 +33,13 @@ type RunEvent struct {
 	ReasoningKind    ReasoningKind
 	CallID, ToolName string
 	DisplayName      string
-	OK               bool
-	DurationMS       int64
-	Message          *Message
-	Run              *Run
-	Failure          *RunFailure
+	// Details carries the show_in_progress parameter values for an EventToolStarted
+	// call, already resolved and rendered so a caller relays them as-is. Empty, not
+	// nil, when the tool has no visible parameter.
+	Details    []ToolStartedDetail
+	OK         bool
+	DurationMS int64
+	Message    *Message
+	Run        *Run
+	Failure    *RunFailure
 }

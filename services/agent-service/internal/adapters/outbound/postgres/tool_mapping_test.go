@@ -45,6 +45,26 @@ func TestToolParamsDecodeRowsSavedBeforeNestedShapes(t *testing.T) {
 	if len(decoded) != 1 || decoded[0].ItemType != "" || len(decoded[0].Fields) != 0 {
 		t.Fatalf("giải mã bản ghi cũ sai: %+v", decoded)
 	}
+	if decoded[0].ShowInProgress {
+		t.Fatalf("bản ghi cũ không có khóa show_in_progress phải đọc ra tắt: %+v", decoded[0])
+	}
+}
+
+func TestToolParamsSurviveEncodeDecodeWithShowInProgress(t *testing.T) {
+	params := []domain.ToolParam{
+		{Name: "month", Type: domain.ToolParamString, Description: "Tháng", Required: true, Location: domain.ToolParamQuery, ShowInProgress: true},
+		{Name: "recipient_account", Type: domain.ToolParamString, Description: "Số tài khoản", Required: true, Location: domain.ToolParamBody},
+	}
+	decoded, err := decodeToolParams(encodeToolParams(params))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded) != 2 || !decoded[0].ShowInProgress {
+		t.Fatalf("cờ show_in_progress bật mất khi lưu: %+v", decoded)
+	}
+	if decoded[1].ShowInProgress {
+		t.Fatalf("cờ show_in_progress tắt lại đọc ra bật: %+v", decoded[1])
+	}
 }
 
 func TestEncodedToolParamsOmitEmptyNestedKeys(t *testing.T) {
@@ -59,5 +79,8 @@ func TestEncodedToolParamsOmitEmptyNestedKeys(t *testing.T) {
 	}
 	if _, ok := rows[0]["item_type"]; ok {
 		t.Fatalf("không nên ghi khóa item_type khi rỗng: %s", encoded)
+	}
+	if _, ok := rows[0]["show_in_progress"]; ok {
+		t.Fatalf("không nên ghi khóa show_in_progress khi tắt: %s", encoded)
 	}
 }

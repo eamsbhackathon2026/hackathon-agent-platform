@@ -21,6 +21,9 @@ func toolParams(values []gen.ToolParam) []domain.ToolParam {
 		if value.ItemType != nil {
 			param.ItemType = domain.ToolParamType(*value.ItemType)
 		}
+		if value.ShowInProgress != nil {
+			param.ShowInProgress = *value.ShowInProgress
+		}
 		result[i] = param
 	}
 	return result
@@ -41,6 +44,11 @@ func toolParamsDTO(values []domain.ToolParam) []gen.ToolParam {
 			itemType := gen.ToolParamItemType(value.ItemType)
 			param.ItemType = &itemType
 		}
+		// The contract declares show_in_progress with a default, which the generated
+		// TypeScript type reads as always present; the pointer is set unconditionally
+		// so a false value round-trips instead of reading as undefined on the client.
+		showInProgress := value.ShowInProgress
+		param.ShowInProgress = &showInProgress
 		result[i] = param
 	}
 	return result

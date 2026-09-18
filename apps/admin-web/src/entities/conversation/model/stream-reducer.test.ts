@@ -8,7 +8,7 @@ describe("streamReducer", () => {
       { type: "stream.reset" },
       { type: "run.started", run_id: "run-1", session_id: "session-1" },
       { type: "message.delta", text: "Hello" },
-      { type: "tool.started", call_id: "call-1", tool_name: "weather", display_name: "Weather" },
+      { type: "tool.started", call_id: "call-1", tool_name: "weather", display_name: "Weather", details: [] },
       { type: "tool.finished", call_id: "call-1", ok: true, duration_ms: 25 },
       { type: "message.delta", text: " there" },
     ];

@@ -14,10 +14,11 @@ describe("agentFormSchema", () => {
     expect(agentFormSchema.safeParse({ ...valid, context_window_tokens: 8_192, max_output_tokens: 6_349 }).success).toBe(true);
   });
   it("requires an explicit choice about narrating the thinking", () => {
-    // Bỏ trống thì form gửi undefined và máy chủ hiểu là "giữ nguyên", nên giá
-    // trị phải luôn có mặt — mặc định tắt nằm ở defaults của form.
-    const { show_thinking: _bo, ...thieu } = valid;
-    expect(agentFormSchema.safeParse(thieu).success).toBe(false);
+    // Omitting it makes the form send undefined, which the server reads as "leave
+    // unchanged", so the value is always present; the off default lives in the form.
+    const { show_thinking, ...missing } = valid;
+    void show_thinking;
+    expect(agentFormSchema.safeParse(missing).success).toBe(false);
     expect(agentFormSchema.safeParse({ ...valid, show_thinking: true }).success).toBe(true);
   });
   it("matches the OpenAPI text limits", () => {

@@ -34,7 +34,7 @@ func (s *Service) Resolve(ctx context.Context, agentID uuid.UUID) (outbound.Tool
 			return nil, decryptErr
 		}
 		name := domain.UniqueToolName("http_", tool.Slug, "http:"+tool.ID.String(), used)
-		set.specs = append(set.specs, domain.ToolSpec{Name: name, Ref: tool.Slug, Description: tool.Description, DisplayName: domain.ToolStepLabel(tool.StepLabel, tool.DisplayName, name), JSONSchema: domain.ToolJSONSchema(tool.Params)})
+		set.specs = append(set.specs, domain.ToolSpec{Name: name, Ref: tool.Slug, Description: tool.Description, DisplayName: domain.ToolStepLabel(tool.StepLabel, tool.DisplayName, name), VisibleParams: visibleParamNames(tool.Params), JSONSchema: domain.ToolJSONSchema(tool.Params)})
 		set.entries[name] = resolvedEntry{httpTool: &resolvedTool, secrets: secrets}
 	}
 	for _, server := range catalog.MCPServers {
@@ -56,6 +56,19 @@ func (s *Service) Resolve(ctx context.Context, agentID uuid.UUID) (outbound.Tool
 		}
 	}
 	return set, nil
+}
+
+// visibleParamNames lists the parameters an operator marked show_in_progress, in
+// declaration order, so the run engine knows which arguments of a call it may put
+// into a tool.started event. Nothing marked returns an empty, not nil, slice.
+func visibleParamNames(params []domain.ToolParam) []string {
+	names := make([]string, 0, len(params))
+	for _, param := range params {
+		if param.ShowInProgress {
+			names = append(names, param.Name)
+		}
+	}
+	return names
 }
 
 type apiConnectionSnapshot struct {

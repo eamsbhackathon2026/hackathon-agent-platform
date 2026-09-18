@@ -1411,6 +1411,14 @@ export interface components {
              * @enum {string}
              */
             item_type?: "string" | "number" | "integer" | "boolean" | "object";
+            /**
+             * @description Bật thì giá trị mô hình gửi cho tham số này được đính kèm (đã rút gọn) vào sự kiện
+             *     tool.started, để nhãn bước có thể nói cụ thể hơn, ví dụ "...tháng 6/2026". Mặc định
+             *     tắt: chỉ người vận hành mới bật, vì tham số có thể mang dữ liệu nhạy cảm như số tài
+             *     khoản hoặc số tiền. Bản ghi cũ chưa có khóa này đọc ra tắt.
+             * @default false
+             */
+            show_in_progress: boolean;
         };
         /** @description Một trường bên trong tham số kiểu object. Chỉ nhận kiểu nguyên thủy, không lồng tiếp. */
         ToolParamField: {
@@ -2011,6 +2019,19 @@ export interface components {
             tool_name: string;
             /** @description Nhãn hiện cho người dùng cuối, lấy step_label của công cụ; bỏ trống thì display_name, cuối cùng mới tới tool_name. */
             display_name: string;
+            /**
+             * @description Chỉ chứa những tham số mà người vận hành đã bật show_in_progress cho công cụ này,
+             *     với giá trị mô hình vừa gửi và đã được rút gọn. Mảng rỗng khi không tham số nào được
+             *     bật. KHÔNG được coi là an toàn để hiện thẳng cho người dùng cuối nếu người vận hành
+             *     bật nhầm cờ này cho một tham số nhạy cảm — nền tảng chỉ gửi kèm đúng những gì được
+             *     bật, việc chọn tham số nào vẫn là quyết định của người vận hành.
+             */
+            details: components["schemas"]["ToolStartedDetail"][];
+        };
+        /** @description Một tham số show_in_progress và giá trị đã rút gọn của nó cho một lần gọi công cụ. */
+        ToolStartedDetail: {
+            name: string;
+            value: string;
         };
         ToolFinishedEvent: {
             /**

@@ -12,7 +12,12 @@ type ToolSpec struct {
 	// DisplayName is the end-user label for this tool while it runs, already
 	// resolved from the saved labels so the run engine does not repeat that choice.
 	DisplayName string
-	JSONSchema  json.RawMessage
+	// VisibleParams lists the parameter names an operator marked show_in_progress,
+	// in declaration order. It tells the run engine which arguments of a call it
+	// may put into a tool.started event; everything else in the call's arguments
+	// must stay inside the platform.
+	VisibleParams []string
+	JSONSchema    json.RawMessage
 }
 
 // ToolCall preserves provider metadata privately for subsequent turns.

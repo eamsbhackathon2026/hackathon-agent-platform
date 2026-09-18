@@ -64,3 +64,35 @@ func TestRunDTOKeepsUnloadedToolResultsNull(t *testing.T) {
 		t.Fatalf("run không gọi tool phải trả mảng rỗng, nhận: %s", raw)
 	}
 }
+
+// tool.started's details is required on the wire, so a call with no visible
+// parameter must still serialize as an empty array rather than null.
+func TestEventDTOKeepsToolStartedDetailsAsAnArray(t *testing.T) {
+	event, err := eventDTO(domain.RunEvent{Type: domain.EventToolStarted, CallID: "call-1", ToolName: "http_get_monthly_summary", DisplayName: "Đang đọc chi tiêu"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"details":[]`) {
+		t.Fatalf("tool.started không có tham số hiện phải trả mảng rỗng, nhận: %s", raw)
+	}
+}
+
+// A parameter the resolver marked visible travels through eventDTO with its
+// rendered value, matching what an end user is meant to read next to the label.
+func TestEventDTOCarriesToolStartedDetails(t *testing.T) {
+	event, err := eventDTO(domain.RunEvent{Type: domain.EventToolStarted, CallID: "call-1", ToolName: "http_precheck_transfer", DisplayName: "Đang kiểm tra giao dịch", Details: []domain.ToolStartedDetail{{Name: "month", Value: "2026-06"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"details":[{"name":"month","value":"2026-06"}]`) {
+		t.Fatalf("chi tiết tham số hiện không được truyền đúng: %s", raw)
+	}
+}

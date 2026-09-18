@@ -106,6 +106,16 @@ func spanDTO(span domain.Span) (gen.Span, error) {
 	return gen.Span{Id: span.ID, RunId: span.RunID, ParentSpanId: nullableValue(span.ParentSpanID), Kind: gen.SpanKind(span.Kind), Name: span.Name, Status: gen.SpanStatus(span.Status), Model: nullableValue(span.Model), ToolName: nullableValue(span.ToolName), Usage: usageDTO(span.Usage), StartedAt: span.StartedAt, EndedAt: span.EndedAt, DurationMs: span.DurationMS, Attributes: attributes, ErrorMessage: nullableValue(span.ErrorMessage)}, nil
 }
 
+// toolStartedDetailsDTO never returns nil: the details array is required on the
+// wire, empty when the tool has no visible parameter rather than absent.
+func toolStartedDetailsDTO(details []domain.ToolStartedDetail) []gen.ToolStartedDetail {
+	result := make([]gen.ToolStartedDetail, len(details))
+	for i, detail := range details {
+		result[i] = gen.ToolStartedDetail{Name: detail.Name, Value: detail.Value}
+	}
+	return result
+}
+
 func eventDTO(event domain.RunEvent) (gen.RunEvent, error) {
 	var result gen.RunEvent
 	switch event.Type {
@@ -116,7 +126,7 @@ func eventDTO(event domain.RunEvent) (gen.RunEvent, error) {
 	case domain.EventReasoningDelta:
 		return result, result.FromReasoningDeltaEvent(gen.ReasoningDeltaEvent{Type: gen.ReasoningDelta, Text: event.Text, Kind: gen.ReasoningDeltaEventKind(event.ReasoningKind)})
 	case domain.EventToolStarted:
-		return result, result.FromToolStartedEvent(gen.ToolStartedEvent{Type: gen.ToolStarted, CallId: event.CallID, ToolName: event.ToolName, DisplayName: event.DisplayName})
+		return result, result.FromToolStartedEvent(gen.ToolStartedEvent{Type: gen.ToolStarted, CallId: event.CallID, ToolName: event.ToolName, DisplayName: event.DisplayName, Details: toolStartedDetailsDTO(event.Details)})
 	case domain.EventToolFinished:
 		return result, result.FromToolFinishedEvent(gen.ToolFinishedEvent{Type: gen.ToolFinished, CallId: event.CallID, Ok: event.OK, DurationMs: event.DurationMS})
 	case domain.EventMessageCompleted:

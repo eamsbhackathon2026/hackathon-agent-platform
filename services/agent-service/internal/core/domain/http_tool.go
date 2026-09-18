@@ -65,6 +65,11 @@ type ToolParam struct {
 	Location          ToolParamLocation
 	Fields            []ToolParamField
 	ItemType          ToolParamType
+	// ShowInProgress opts this parameter's value into the tool.started event while a
+	// call runs. An operator sets it per parameter because a call's arguments can
+	// carry data such as an account number or a transfer amount; false is the safe
+	// default, and a row saved before this flag existed reads as false.
+	ShowInProgress bool
 }
 
 // HTTPTool stores encrypted request headers and never exposes their values in DTOs.

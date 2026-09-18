@@ -3393,6 +3393,14 @@ components:
           - boolean
           - object
           description: Kiểu của mỗi phần tử, chỉ dùng khi type=array. Bỏ trống nếu phần tử có kiểu tùy ý.
+        show_in_progress:
+          type: boolean
+          default: false
+          description: |-
+            Bật thì giá trị mô hình gửi cho tham số này được đính kèm (đã rút gọn) vào sự kiện
+            tool.started, để nhãn bước có thể nói cụ thể hơn, ví dụ "...tháng 6/2026". Mặc định
+            tắt: chỉ người vận hành mới bật, vì tham số có thể mang dữ liệu nhạy cảm như số tài
+            khoản hoặc số tiền. Bản ghi cũ chưa có khóa này đọc ra tắt.
       required:
       - name
       - type
@@ -4872,11 +4880,34 @@ components:
         display_name:
           type: string
           description: Nhãn hiện cho người dùng cuối, lấy step_label của công cụ; bỏ trống thì display_name, cuối cùng mới tới tool_name.
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolStartedDetail'
+          description: |-
+            Chỉ chứa những tham số mà người vận hành đã bật show_in_progress cho công cụ này,
+            với giá trị mô hình vừa gửi và đã được rút gọn. Mảng rỗng khi không tham số nào được
+            bật. KHÔNG được coi là an toàn để hiện thẳng cho người dùng cuối nếu người vận hành
+            bật nhầm cờ này cho một tham số nhạy cảm — nền tảng chỉ gửi kèm đúng những gì được
+            bật, việc chọn tham số nào vẫn là quyết định của người vận hành.
       required:
       - type
       - call_id
       - tool_name
       - display_name
+      - details
+    ToolStartedDetail:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+      required:
+      - name
+      - value
+      additionalProperties: false
+      description: Một tham số show_in_progress và giá trị đã rút gọn của nó cho một lần gọi công cụ.
     ToolFinishedEvent:
       type: object
       properties:

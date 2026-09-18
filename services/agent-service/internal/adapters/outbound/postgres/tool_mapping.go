@@ -18,6 +18,9 @@ type toolParamJSON struct {
 	Location    string               `json:"in"`
 	Fields      []toolParamFieldJSON `json:"fields,omitempty"`
 	ItemType    string               `json:"item_type,omitempty"`
+	// ShowInProgress is omitted when false so a row that declares no visible
+	// parameter keeps the same JSON it had before this flag existed.
+	ShowInProgress bool `json:"show_in_progress,omitempty"`
 }
 
 type toolParamFieldJSON struct {
@@ -40,7 +43,7 @@ func encodeToolParams(params []domain.ToolParam) []byte {
 		for j, field := range param.Fields {
 			fields[j] = toolParamFieldJSON{Name: field.Name, Type: string(field.Type), Description: field.Description, Required: field.Required}
 		}
-		values[i] = toolParamJSON{Name: param.Name, Type: string(param.Type), Description: param.Description, Required: param.Required, Location: string(param.Location), Fields: fields, ItemType: string(param.ItemType)}
+		values[i] = toolParamJSON{Name: param.Name, Type: string(param.Type), Description: param.Description, Required: param.Required, Location: string(param.Location), Fields: fields, ItemType: string(param.ItemType), ShowInProgress: param.ShowInProgress}
 	}
 	value, _ := json.Marshal(values)
 	return value
@@ -57,7 +60,7 @@ func decodeToolParams(value []byte) ([]domain.ToolParam, error) {
 		for j, field := range param.Fields {
 			fields[j] = domain.ToolParamField{Name: field.Name, Type: domain.ToolParamType(field.Type), Description: field.Description, Required: field.Required}
 		}
-		result[i] = domain.ToolParam{Name: param.Name, Type: domain.ToolParamType(param.Type), Description: param.Description, Required: param.Required, Location: domain.ToolParamLocation(param.Location), Fields: fields, ItemType: domain.ToolParamType(param.ItemType)}
+		result[i] = domain.ToolParam{Name: param.Name, Type: domain.ToolParamType(param.Type), Description: param.Description, Required: param.Required, Location: domain.ToolParamLocation(param.Location), Fields: fields, ItemType: domain.ToolParamType(param.ItemType), ShowInProgress: param.ShowInProgress}
 	}
 	return result, nil
 }
