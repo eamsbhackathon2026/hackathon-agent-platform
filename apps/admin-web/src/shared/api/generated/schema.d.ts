@@ -1415,6 +1415,8 @@ export interface components {
         HttpToolCreateRequest: {
             slug: string;
             display_name: string;
+            /** @description Câu ngắn hiện cho người dùng cuối trong lúc trợ lý chạy công cụ này, ví dụ: Đang đọc chi tiêu theo tháng. Bỏ trống thì sự kiện tool.started dùng display_name. */
+            step_label?: string;
             description?: string;
             /** @enum {string} */
             method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -1440,6 +1442,8 @@ export interface components {
         HttpToolUpdateRequest: {
             slug?: string;
             display_name?: string;
+            /** @description Câu ngắn hiện cho người dùng cuối trong lúc trợ lý chạy công cụ này, ví dụ: Đang đọc chi tiêu theo tháng. Bỏ trống thì sự kiện tool.started dùng display_name. */
+            step_label?: string;
             description?: string;
             /** @enum {string} */
             method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -1463,6 +1467,8 @@ export interface components {
         HttpTool: {
             slug: string;
             display_name: string;
+            /** @description Câu ngắn hiện cho người dùng cuối trong lúc trợ lý chạy công cụ này, ví dụ: Đang đọc chi tiêu theo tháng. Bỏ trống thì sự kiện tool.started dùng display_name. */
+            step_label: string;
             description: string;
             /** @enum {string} */
             method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -1509,6 +1515,8 @@ export interface components {
         ToolBundleTool: {
             slug: string;
             display_name: string;
+            /** @description Câu ngắn hiện cho người dùng cuối trong lúc trợ lý chạy công cụ này, ví dụ: Đang đọc chi tiêu theo tháng. Bỏ trống thì sự kiện tool.started dùng display_name. */
+            step_label?: string;
             description: string;
             /** @enum {string} */
             method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -1976,7 +1984,9 @@ export interface components {
              */
             type: "tool.started";
             call_id: string;
+            /** @description Tên công cụ như mô hình nhìn thấy, ví dụ http_get_monthly_summary. */
             tool_name: string;
+            /** @description Nhãn hiện cho người dùng cuối, lấy step_label của công cụ; bỏ trống thì display_name, cuối cùng mới tới tool_name. */
             display_name: string;
         };
         ToolFinishedEvent: {

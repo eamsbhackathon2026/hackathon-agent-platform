@@ -94,6 +94,61 @@ function describe(name, manifestSource, ...candidates) {
   return titleFrom(name, ...candidates);
 }
 
+// Nhãn tiến trình: câu khách đọc trong lúc trợ lý chạy công cụ. Viết tay chứ không
+// suy ra từ mô tả manifest, vì mô tả ở đó vừa lẫn lộn cụm danh từ với cụm động từ
+// ("Lịch sử giao dịch…" bên cạnh "Chấm điểm rủi ro…"), vừa đầy khái niệm nội bộ
+// (digital twin, baseline, persona, playbook, decision_id) mà khách không cần biết.
+// Ghép máy móc sẽ cho ra câu sai ngữ pháp hoặc lộ thứ không nên lộ.
+//
+// Công cụ mới chưa có trong bảng này nhận chuỗi rỗng, và nền tảng sẽ rơi về tên
+// hiển thị — xấu hơn nhưng không sai. Sửa nhanh một nhãn thì vào màn công cụ của
+// admin, bảng này chỉ là giá trị khởi tạo.
+export const STEP_LABELS = {
+  get_transactions: 'Đang xem lịch sử giao dịch của bạn',
+  get_monthly_summary: 'Đang tổng hợp thu chi theo tháng',
+  get_cashflow_forecast: 'Đang dự báo dòng tiền các tháng tới',
+  get_baseline_metrics: 'Đang xem thói quen chi tiêu của bạn',
+  create_transaction: 'Đang ghi nhận giao dịch',
+  update_transaction_status: 'Đang cập nhật trạng thái giao dịch',
+  get_insights: 'Đang xem nhận định chi tiêu của kỳ này',
+  generate_insights: 'Đang phân tích lại chi tiêu trong kỳ',
+  list_products: 'Đang xem các sản phẩm đang mở bán',
+  generate_recommendations: 'Đang tìm gợi ý tích lũy phù hợp với bạn',
+  get_recommendations: 'Đang xem các gợi ý đã đưa cho bạn',
+  update_recommendation: 'Đang ghi nhận lựa chọn của bạn',
+  list_customers: 'Đang tra danh sách khách hàng',
+  get_customer: 'Đang xem hồ sơ khách hàng',
+  get_portfolio: 'Đang xem toàn cảnh tài chính của bạn',
+  get_accounts: 'Đang xem số dư tài khoản của bạn',
+  get_baseline: 'Đang xem thói quen giao dịch thường ngày',
+  recompute_baseline: 'Đang cập nhật lại thói quen giao dịch',
+  resolve_beneficiary: 'Đang tra thông tin người nhận',
+  list_beneficiaries: 'Đang xem sổ người nhận của bạn',
+  set_beneficiary_status: 'Đang đánh dấu người nhận đáng ngờ',
+  list_recent_events: 'Đang xem các thay đổi gần đây trên tài khoản',
+  create_event: 'Đang ghi nhận thay đổi trên tài khoản',
+  precheck_transfer: 'Đang kiểm tra rủi ro của lệnh chuyển tiền',
+  record_intervention: 'Đang ghi nhận câu trả lời của bạn',
+  take_action: 'Đang thực hiện hành động bạn chọn',
+  get_decision: 'Đang xem lại kết quả kiểm tra rủi ro',
+  list_decisions: 'Đang tra lịch sử cảnh báo rủi ro',
+  ops_summary: 'Đang tổng hợp số liệu vận hành',
+  ops_decision_log: 'Đang xem nhật ký cảnh báo',
+  list_scams: 'Đang tra danh sách thủ đoạn lừa đảo',
+  get_scam: 'Đang xem chi tiết một thủ đoạn lừa đảo',
+  match_scam: 'Đang đối chiếu với các thủ đoạn lừa đảo đã biết',
+  get_questions: 'Đang chuẩn bị câu hỏi xác minh',
+  record_action: 'Đang ghi nhận hành động bảo vệ',
+  create_case: 'Đang mở yêu cầu hỗ trợ cho bạn',
+  list_cases: 'Đang xem các yêu cầu hỗ trợ',
+  update_case: 'Đang cập nhật yêu cầu hỗ trợ',
+  submit_feedback: 'Đang ghi nhận phản hồi',
+  apply_feedback: 'Đang cập nhật hệ thống theo phản hồi',
+  send_notification: 'Đang gửi thông báo cho bạn',
+  log_llm_call: 'Đang ghi nhật ký kiểm toán',
+  llm_trace_stats: 'Đang xem thống kê chất lượng trả lời',
+};
+
 /** Câu đầu của mô tả, dùng làm nhãn hiển thị; cắt theo ranh giới từ. */
 function displayName(description, fallback) {
   const source = (description ?? '').trim();
@@ -198,6 +253,7 @@ export function buildToolPayloads({ manifest, openapi, connectionId, timeoutSeco
     return {
       slug: tool.name,
       display_name: displayName(tool.description, tool.name),
+      step_label: STEP_LABELS[tool.name] ?? '',
       description,
       method,
       url_template: tool.path,
@@ -213,6 +269,7 @@ export function buildToolPayloads({ manifest, openapi, connectionId, timeoutSeco
 export function toolDiffers(existing, desired) {
   const shape = (tool) => JSON.stringify({
     display_name: tool.display_name,
+    step_label: tool.step_label ?? '',
     description: tool.description,
     method: tool.method,
     url_template: tool.url_template,

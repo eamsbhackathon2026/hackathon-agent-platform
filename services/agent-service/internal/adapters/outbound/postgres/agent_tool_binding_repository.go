@@ -94,7 +94,7 @@ func (s *Store) ResolveAgentTools(ctx context.Context, agentID uuid.UUID) (outbo
 
 func resolvedHTTPToolModels(row sqlcgen.ResolveAgentHTTPToolsRow) (domain.HTTPTool, *domain.APIConnection, error) {
 	tool, err := httpToolModel(sqlcgen.Tool{
-		ID: row.ID, Slug: row.Slug, DisplayName: row.DisplayName, Description: row.Description,
+		ID: row.ID, Slug: row.Slug, DisplayName: row.DisplayName, StepLabel: row.StepLabel, Description: row.Description,
 		Kind: row.Kind, Method: row.Method, UrlTemplate: row.UrlTemplate, Params: row.Params,
 		PublicHeaders: row.PublicHeaders, SecretHeadersCiphertext: row.SecretHeadersCiphertext,
 		SecretHeaderNames: row.SecretHeaderNames, TimeoutSeconds: row.TimeoutSeconds,

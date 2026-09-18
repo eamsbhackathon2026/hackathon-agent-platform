@@ -1,8 +1,8 @@
 -- name: LockTooling :exec
 SELECT pg_advisory_xact_lock(724391822);
 -- name: CreateTool :exec
-INSERT INTO tools (id,connection_id,slug,display_name,description,method,url_template,params,public_headers,secret_headers_ciphertext,secret_header_names,timeout_seconds,created_at,updated_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14);
+INSERT INTO tools (id,connection_id,slug,display_name,step_label,description,method,url_template,params,public_headers,secret_headers_ciphertext,secret_header_names,timeout_seconds,created_at,updated_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15);
 -- name: GetTool :one
 SELECT * FROM tools WHERE id=$1;
 -- name: GetToolForUpdate :one
@@ -13,7 +13,7 @@ ORDER BY created_at DESC,id DESC LIMIT $1;
 -- name: ListAllTools :many
 SELECT * FROM tools ORDER BY slug;
 -- name: UpdateTool :execrows
-UPDATE tools SET connection_id=$2,slug=$3,display_name=$4,description=$5,method=$6,url_template=$7,params=$8,public_headers=$9,secret_headers_ciphertext=$10,secret_header_names=$11,timeout_seconds=$12,updated_at=$13
+UPDATE tools SET connection_id=$2,slug=$3,display_name=$4,step_label=$5,description=$6,method=$7,url_template=$8,params=$9,public_headers=$10,secret_headers_ciphertext=$11,secret_header_names=$12,timeout_seconds=$13,updated_at=$14
 WHERE id=$1;
 -- name: DeleteTool :execrows
 DELETE FROM tools WHERE id=$1;

@@ -33,6 +33,8 @@ export function ToolConfigForm(props: Props) {
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Display name"><Input name="display_name" defaultValue={editing?.display_name} required /></Field>
         <Field label="Short name"><Input name="slug" defaultValue={editing?.slug} pattern="[a-zA-Z0-9_-]+" required /></Field>
+        <Field label="Progress label"><Input name="step_label" defaultValue={editing?.step_label} maxLength={80} placeholder="Đang đọc chi tiêu theo tháng…" /></Field>
+        <p className="self-end text-sm text-muted-foreground">People chatting with the assistant read this line while the tool runs. Write it in their language. Leave it empty to show the display name instead.</p>
         <Field label="Method"><select name="method" value={method} onChange={(event) => setMethod(event.target.value as HttpTool["method"])} className="h-10 rounded-md border bg-background px-3"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select></Field>
         <Field label="API connection"><select name="connection_id" value={connectionId} onChange={(event) => setConnectionId(event.target.value)} className="h-10 rounded-md border bg-background px-3"><option value="">Direct URL</option>{props.connections.map((item) => <option key={item.id} value={item.id}>{item.display_name} — {item.base_url}</option>)}</select></Field>
         <Field label={connectionId ? "Operation path" : "Address"}><Input name="url_template" value={path} onChange={(event) => setPath(event.target.value)} type={connectionId ? "text" : "url"} placeholder={connectionId ? "/orders/{order_id}" : "https://example.com/orders/{order_id}"} required /></Field>

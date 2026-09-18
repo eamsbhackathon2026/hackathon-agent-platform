@@ -154,7 +154,7 @@ func (s *Service) iterate(ctx context.Context, agent domain.Agent, client outbou
 			return nil
 		}
 		for _, call := range result.ToolCalls {
-			failure, warning := s.executeTool(ctx, state, tools, call, emit)
+			failure, warning := s.executeTool(ctx, state, tools, call, stepLabel(declaredTools, call.Name), emit)
 			if failure != nil {
 				return failure
 			}
@@ -164,11 +164,23 @@ func (s *Service) iterate(ctx context.Context, agent domain.Agent, client outbou
 	return &domain.RunFailure{Code: "max_iterations_reached", Message: "Trợ lý đã đạt giới hạn số bước xử lý."}
 }
 
-func (s *Service) executeTool(ctx context.Context, state *executionState, tools outbound.ToolSet, call domain.ToolCall, emit func(domain.RunEvent)) (*domain.RunFailure, string) {
+// stepLabel finds the end-user label the resolver attached to this tool. A call
+// to a name the agent no longer declares falls back to that name; Execute then
+// reports the same unknown tool to the model.
+func stepLabel(specs []domain.ToolSpec, name string) string {
+	for _, spec := range specs {
+		if spec.Name == name {
+			return domain.ToolStepLabel(spec.DisplayName, name)
+		}
+	}
+	return name
+}
+
+func (s *Service) executeTool(ctx context.Context, state *executionState, tools outbound.ToolSet, call domain.ToolCall, label string, emit func(domain.RunEvent)) (*domain.RunFailure, string) {
 	if ctx.Err() != nil {
 		return failureFromCause(context.Cause(ctx)), ""
 	}
-	emit(domain.RunEvent{Type: domain.EventToolStarted, CallID: call.ID, ToolName: call.Name, DisplayName: domain.ToolDisplayName(call.Name)})
+	emit(domain.RunEvent{Type: domain.EventToolStarted, CallID: call.ID, ToolName: call.Name, DisplayName: label})
 	if ctx.Err() != nil {
 		return failureFromCause(context.Cause(ctx)), ""
 	}

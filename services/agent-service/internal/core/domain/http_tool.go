@@ -69,9 +69,12 @@ type ToolParam struct {
 
 // HTTPTool stores encrypted request headers and never exposes their values in DTOs.
 type HTTPTool struct {
-	ID                      uuid.UUID
-	ConnectionID            *uuid.UUID
-	Slug, DisplayName       string
+	ID                uuid.UUID
+	ConnectionID      *uuid.UUID
+	Slug, DisplayName string
+	// StepLabel is what an end user reads while this tool runs; empty means the
+	// caller falls back to DisplayName.
+	StepLabel               string
 	Description             string
 	Method                  HTTPToolMethod
 	URLTemplate             string

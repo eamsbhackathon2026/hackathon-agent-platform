@@ -34,7 +34,7 @@ func (s *Service) Resolve(ctx context.Context, agentID uuid.UUID) (outbound.Tool
 			return nil, decryptErr
 		}
 		name := domain.UniqueToolName("http_", tool.Slug, "http:"+tool.ID.String(), used)
-		set.specs = append(set.specs, domain.ToolSpec{Name: name, Ref: tool.Slug, Description: tool.Description, JSONSchema: domain.ToolJSONSchema(tool.Params)})
+		set.specs = append(set.specs, domain.ToolSpec{Name: name, Ref: tool.Slug, Description: tool.Description, DisplayName: domain.ToolStepLabel(tool.StepLabel, tool.DisplayName, name), JSONSchema: domain.ToolJSONSchema(tool.Params)})
 		set.entries[name] = resolvedEntry{httpTool: &resolvedTool, secrets: secrets}
 	}
 	for _, server := range catalog.MCPServers {
@@ -50,7 +50,7 @@ func (s *Service) Resolve(ctx context.Context, agentID uuid.UUID) (outbound.Tool
 				continue
 			}
 			name := domain.UniqueToolName("mcp_"+server.Slug+"_", tool.Name, fmt.Sprintf("mcp:%s:%s", server.ID, tool.Name), used)
-			set.specs = append(set.specs, domain.ToolSpec{Name: name, Ref: server.Slug + "." + tool.Name, Description: tool.Description, JSONSchema: append([]byte(nil), tool.InputSchema...)})
+			set.specs = append(set.specs, domain.ToolSpec{Name: name, Ref: server.Slug + "." + tool.Name, Description: tool.Description, DisplayName: domain.ToolStepLabel(server.DisplayName, tool.Name, name), JSONSchema: append([]byte(nil), tool.InputSchema...)})
 			serverCopy := server
 			set.entries[name] = resolvedEntry{mcpServer: &serverCopy, mcpToolName: tool.Name, secrets: secrets}
 		}

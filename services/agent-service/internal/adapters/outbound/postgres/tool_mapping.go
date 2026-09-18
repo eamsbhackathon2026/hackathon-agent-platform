@@ -110,7 +110,7 @@ func httpToolModel(v sqlcgen.Tool) (domain.HTTPTool, error) {
 	if err != nil {
 		return domain.HTTPTool{}, err
 	}
-	return domain.HTTPTool{ID: uuid.UUID(v.ID.Bytes), ConnectionID: idPointer(v.ConnectionID), Slug: v.Slug, DisplayName: v.DisplayName, Description: v.Description, Method: domain.HTTPToolMethod(v.Method), URLTemplate: v.UrlTemplate, Params: params, PublicHeaders: headers, SecretHeadersCiphertext: append([]byte(nil), v.SecretHeadersCiphertext...), SecretHeaderNames: append([]string(nil), v.SecretHeaderNames...), TimeoutSeconds: int(v.TimeoutSeconds), CreatedAt: v.CreatedAt.Time.UTC(), UpdatedAt: v.UpdatedAt.Time.UTC()}, nil
+	return domain.HTTPTool{ID: uuid.UUID(v.ID.Bytes), ConnectionID: idPointer(v.ConnectionID), Slug: v.Slug, DisplayName: v.DisplayName, StepLabel: v.StepLabel, Description: v.Description, Method: domain.HTTPToolMethod(v.Method), URLTemplate: v.UrlTemplate, Params: params, PublicHeaders: headers, SecretHeadersCiphertext: append([]byte(nil), v.SecretHeadersCiphertext...), SecretHeaderNames: append([]string(nil), v.SecretHeaderNames...), TimeoutSeconds: int(v.TimeoutSeconds), CreatedAt: v.CreatedAt.Time.UTC(), UpdatedAt: v.UpdatedAt.Time.UTC()}, nil
 }
 
 func mcpServerModel(v sqlcgen.McpServer) (domain.MCPServer, error) {

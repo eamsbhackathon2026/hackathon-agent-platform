@@ -24,7 +24,7 @@ func toolingFixture(t *testing.T) (*Store, domain.HTTPTool, domain.MCPServer, do
 		t.Fatal(err)
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	tool := domain.HTTPTool{ID: uuid.New(), Slug: "weather", DisplayName: "Thời tiết", Description: "Tra cứu", Method: domain.HTTPToolGET, URLTemplate: "https://api.example.com/{city}", Params: []domain.ToolParam{{Name: "city", Type: domain.ToolParamString, Required: true, Location: domain.ToolParamPath}}, PublicHeaders: map[string]string{"Accept": "application/json"}, SecretHeadersCiphertext: []byte{0, 1, 2}, SecretHeaderNames: []string{"Authorization"}, TimeoutSeconds: 15, CreatedAt: now, UpdatedAt: now}
+	tool := domain.HTTPTool{ID: uuid.New(), Slug: "weather", DisplayName: "Thời tiết", StepLabel: "Đang xem thời tiết", Description: "Tra cứu", Method: domain.HTTPToolGET, URLTemplate: "https://api.example.com/{city}", Params: []domain.ToolParam{{Name: "city", Type: domain.ToolParamString, Required: true, Location: domain.ToolParamPath}}, PublicHeaders: map[string]string{"Accept": "application/json"}, SecretHeadersCiphertext: []byte{0, 1, 2}, SecretHeaderNames: []string{"Authorization"}, TimeoutSeconds: 15, CreatedAt: now, UpdatedAt: now}
 	server := domain.MCPServer{ID: uuid.New(), Slug: "office", DisplayName: "Văn phòng", URL: "https://mcp.example.com", SecretHeadersCiphertext: []byte{3, 4}, SecretHeaderNames: []string{"Authorization"}, Tools: []domain.MCPTool{{Name: "search", Description: "Tìm", InputSchema: []byte(`{"type":"object"}`)}}, Status: domain.ConnectionUnchecked, CreatedAt: now, UpdatedAt: now, Revision: 1}
 	return store, tool, server, agent
 }
@@ -39,7 +39,7 @@ func TestToolingRepositoriesRoundTripAndCAS(t *testing.T) {
 		t.Fatal(err)
 	}
 	gotTool, err := store.GetTool(ctx, tool.ID)
-	if err != nil || gotTool.Params[0].Name != "city" || gotTool.PublicHeaders["Accept"] != "application/json" || len(gotTool.SecretHeadersCiphertext) != 3 {
+	if err != nil || gotTool.Params[0].Name != "city" || gotTool.PublicHeaders["Accept"] != "application/json" || len(gotTool.SecretHeadersCiphertext) != 3 || gotTool.StepLabel != "Đang xem thời tiết" {
 		t.Fatalf("tool=%+v err=%v", gotTool, err)
 	}
 	gotServer, err := store.GetMCPServer(ctx, server.ID)
@@ -47,9 +47,24 @@ func TestToolingRepositoriesRoundTripAndCAS(t *testing.T) {
 		t.Fatalf("server=%+v err=%v", gotServer, err)
 	}
 	tool.DisplayName = "Mới"
+	tool.StepLabel = "Đang xem dự báo"
 	tool.UpdatedAt = tool.UpdatedAt.Add(time.Second)
 	if err = store.UpdateTool(ctx, tool); err != nil {
 		t.Fatal(err)
+	}
+	// Cột được thêm sau nên dễ lọt khỏi câu UPDATE: ghi xong đọc lại mới biết.
+	if updated, updateErr := store.GetTool(ctx, tool.ID); updateErr != nil || updated.StepLabel != "Đang xem dự báo" {
+		t.Fatalf("nhãn bước sau khi sửa=%q err=%v", updated.StepLabel, updateErr)
+	}
+	// Công cụ lưu trước khi có cột này đọc ra chuỗi rỗng chứ không phải NULL, nhờ
+	// DEFAULT '' của migration; bên gọi vì thế rơi về tên hiển thị thay vì vỡ.
+	bare := tool
+	bare.ID, bare.Slug, bare.StepLabel = uuid.New(), "bare", ""
+	if err = store.CreateTool(ctx, bare); err != nil {
+		t.Fatal(err)
+	}
+	if got, bareErr := store.GetTool(ctx, bare.ID); bareErr != nil || got.StepLabel != "" {
+		t.Fatalf("nhãn bước của công cụ chưa đặt=%q err=%v", got.StepLabel, bareErr)
 	}
 	empty := []string{}
 	gotServer.AllowedTools = &empty

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/net/http/httpguts"
@@ -19,6 +20,22 @@ var (
 	placeholder      = regexp.MustCompile(`\{([^{}]+)\}`)
 )
 
+// runeOutsideOneLine reports whether value carries a rune that cannot sit in a
+// single line of running text: a control rune (Cc, which includes \n, \r, \t and
+// U+0085), a line or paragraph separator (Zl, Zp — U+2028, U+2029), or an
+// invisible formatting rune (Cf, which includes the bidi overrides that can make
+// a label render as something other than what it stores). Joiners used by emoji
+// sequences fall under Cf too, so a label cannot carry a composed emoji; a step
+// label is a sentence, and that trade is worth closing the spoofing hole.
+func runeOutsideOneLine(value string) bool {
+	for _, r := range value {
+		if unicode.In(r, unicode.Cc, unicode.Cf, unicode.Zl, unicode.Zp) {
+			return true
+		}
+	}
+	return false
+}
+
 // ValidateHTTPTool validates a complete configuration without decrypted secrets.
 func ValidateHTTPTool(tool HTTPTool, secretHeaders map[string]string) error {
 	if !slugPattern.MatchString(tool.Slug) {
@@ -26,6 +43,19 @@ func ValidateHTTPTool(tool HTTPTool, secretHeaders map[string]string) error {
 	}
 	if err := catalogText("display_name", tool.DisplayName, 1, 200); err != nil {
 		return err
+	}
+	// Giới hạn đếm trên phần đã cắt khoảng trắng hai đầu, vì người đọc chỉ thấy
+	// phần đó — bên gọi cũng cắt như vậy trước khi hiện.
+	if err := catalogText("step_label", strings.TrimSpace(tool.StepLabel), 0, 80); err != nil {
+		return err
+	}
+	// Kiểm tra trên chuỗi GỐC: TrimSpace đã nuốt mất ký tự xuống dòng ở hai đầu.
+	// Nhãn bước hiện trên một dòng của danh sách đang chạy, nên ký tự điều khiển,
+	// ký tự tách dòng và ký tự định dạng vô hình chỉ làm vỡ bố cục hoặc đảo chiều
+	// chữ. Chuỗi ở đây không phải lúc nào cũng do người vận hành gõ: bundle công
+	// cụ nhập từ môi trường khác cũng đi qua đúng cửa này.
+	if runeOutsideOneLine(tool.StepLabel) {
+		return Invalid("step_label", "Nhãn bước phải nằm gọn trên một dòng và không chứa ký tự vô hình.")
 	}
 	if err := catalogText("description", tool.Description, 0, 4000); err != nil {
 		return err

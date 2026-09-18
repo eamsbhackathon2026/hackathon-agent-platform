@@ -34,7 +34,7 @@ func (s *Service) ExportTools(ctx context.Context, principal domain.Principal) (
 	bundle = domain.ToolBundle{Format: domain.ToolBundleFormat, Version: domain.ToolBundleVersion, ExportedAt: s.Clock.Now(), Connections: []domain.ToolBundleConnection{}, Tools: make([]domain.ToolBundleTool, 0, len(tools))}
 	used := map[uuid.UUID]bool{}
 	for _, tool := range tools {
-		entry := domain.ToolBundleTool{Slug: tool.Slug, DisplayName: tool.DisplayName, Description: tool.Description, Method: tool.Method, URLTemplate: tool.URLTemplate, Params: cloneParams(tool.Params), PublicHeaders: cloneHeaders(tool.PublicHeaders), TimeoutSeconds: tool.TimeoutSeconds, SecretHeaderNames: append([]string{}, tool.SecretHeaderNames...)}
+		entry := domain.ToolBundleTool{Slug: tool.Slug, DisplayName: tool.DisplayName, StepLabel: tool.StepLabel, Description: tool.Description, Method: tool.Method, URLTemplate: tool.URLTemplate, Params: cloneParams(tool.Params), PublicHeaders: cloneHeaders(tool.PublicHeaders), TimeoutSeconds: tool.TimeoutSeconds, SecretHeaderNames: append([]string{}, tool.SecretHeaderNames...)}
 		if tool.ConnectionID != nil {
 			connection, ok := byID[*tool.ConnectionID]
 			if !ok {

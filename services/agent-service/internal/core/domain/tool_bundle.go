@@ -27,6 +27,7 @@ type ToolBundleConnection struct {
 // because connection IDs differ between environments.
 type ToolBundleTool struct {
 	Slug, DisplayName, Description string
+	StepLabel                      string
 	Method                         HTTPToolMethod
 	URLTemplate                    string
 	ConnectionSlug                 *string

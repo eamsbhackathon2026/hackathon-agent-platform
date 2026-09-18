@@ -11,7 +11,7 @@ import { ToolEditPage } from "./tool-edit-page";
 
 const user = { id: "user-1", email: "user@example.test", name: "User", role: "admin" as const, status: "active" as const, must_change_password: false, last_login_at: null, created_at: "2026-09-15T00:00:00Z" };
 const connection = { id: "connection-1", slug: "commerce", display_name: "Commerce API", base_url: "https://api.example.test/v1", public_headers: {}, secret_header_names: ["Authorization"], created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" };
-const tool = { id: "tool-1", connection_id: connection.id, kind: "http" as const, slug: "orders", display_name: "Orders", description: "Lists orders", method: "POST" as const, url_template: "/orders", params: [], public_headers: {}, secret_header_names: [], timeout_seconds: 15, created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" };
+const tool = { id: "tool-1", connection_id: connection.id, kind: "http" as const, slug: "orders", display_name: "Orders", step_label: "Đang xem đơn hàng", description: "Lists orders", method: "POST" as const, url_template: "/orders", params: [], public_headers: {}, secret_header_names: [], timeout_seconds: 15, created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" };
 
 // Renders the page under real routes so navigation after saving can be observed.
 function Probe() { const location = useLocation(); return <p data-testid="location">{location.pathname}{location.search}</p>; }
@@ -75,6 +75,8 @@ describe("ToolEditPage", () => {
     await waitFor(() => expect(selector).toHaveTextContent("Commerce API"));
     fireEvent.change(selector, { target: { value: connection.id } });
     fireEvent.change(screen.getByLabelText("Operation path"), { target: { value: "/orders" } });
+    // Nhãn tiến trình là câu khách đọc trong lúc công cụ chạy, nên nó phải đi cùng payload.
+    fireEvent.change(screen.getByLabelText("Progress label"), { target: { value: "Đang xem đơn hàng" } });
     // The description is multi-line: a tool's purpose is what the model reads.
     const description = screen.getByLabelText("Description");
     expect(description.tagName).toBe("TEXTAREA");
@@ -83,7 +85,7 @@ describe("ToolEditPage", () => {
     expect(screen.getByRole("group", { name: "Connection details" })).toHaveTextContent("https://api.example.test/v1/orders");
     fireEvent.click(screen.getByRole("button", { name: "Save tool" }));
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/tools?created=tool-1&returnTo=%2Fagents%2Fnew"));
-    expect(created).toMatchObject({ slug: "orders", display_name: "Orders", description: "Lists orders\nfor one customer", method: "GET", url_template: "/orders", connection_id: connection.id });
+    expect(created).toMatchObject({ slug: "orders", display_name: "Orders", step_label: "Đang xem đơn hàng", description: "Lists orders\nfor one customer", method: "GET", url_template: "/orders", connection_id: connection.id });
   });
 
   it("loads an existing tool, saves changes, and returns to the list", async () => {
@@ -96,10 +98,14 @@ describe("ToolEditPage", () => {
     renderAt(`/tools/${tool.id}/edit`);
     expect(await screen.findByLabelText("Display name")).toHaveValue("Orders");
     expect(screen.getByLabelText("Description")).toHaveValue("Lists orders");
+    expect(screen.getByLabelText("Progress label")).toHaveValue("Đang xem đơn hàng");
     fireEvent.change(screen.getByLabelText("Display name"), { target: { value: "Orders v2" } });
+    // Xóa trắng phải gửi chuỗi rỗng chứ không phải bỏ trường: đó là cách người
+    // vận hành nói "quay lại dùng tên hiển thị".
+    fireEvent.change(screen.getByLabelText("Progress label"), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "Save tool" }));
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/tools"));
-    expect(patched).toMatchObject({ display_name: "Orders v2", method: "POST", connection_id: connection.id });
+    expect(patched).toMatchObject({ display_name: "Orders v2", step_label: "", method: "POST", connection_id: connection.id });
   });
 
   it("explains when the tool cannot be loaded", async () => {

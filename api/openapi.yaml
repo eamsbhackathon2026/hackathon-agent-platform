@@ -3429,6 +3429,10 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        step_label:
+          type: string
+          maxLength: 80
+          description: 'Câu ngắn hiện cho người dùng cuối trong lúc trợ lý chạy công cụ này, ví dụ: Đang đọc chi tiêu theo tháng. Bỏ trống thì sự kiện tool.started dùng display_name.'
         description:
           type: string
           maxLength: 4000
@@ -3492,6 +3496,10 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        step_label:
+          type: string
+          maxLength: 80
+          description: 'Câu ngắn hiện cho người dùng cuối trong lúc trợ lý chạy công cụ này, ví dụ: Đang đọc chi tiêu theo tháng. Bỏ trống thì sự kiện tool.started dùng display_name.'
         description:
           type: string
           maxLength: 4000
@@ -3550,6 +3558,10 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        step_label:
+          type: string
+          maxLength: 80
+          description: 'Câu ngắn hiện cho người dùng cuối trong lúc trợ lý chạy công cụ này, ví dụ: Đang đọc chi tiêu theo tháng. Bỏ trống thì sự kiện tool.started dùng display_name.'
         description:
           type: string
           maxLength: 4000
@@ -3605,6 +3617,7 @@ components:
       required:
       - slug
       - display_name
+      - step_label
       - description
       - method
       - url_template
@@ -3687,6 +3700,10 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        step_label:
+          type: string
+          maxLength: 80
+          description: 'Câu ngắn hiện cho người dùng cuối trong lúc trợ lý chạy công cụ này, ví dụ: Đang đọc chi tiêu theo tháng. Bỏ trống thì sự kiện tool.started dùng display_name.'
         description:
           type: string
           maxLength: 4000
@@ -4820,8 +4837,10 @@ components:
           type: string
         tool_name:
           type: string
+          description: Tên công cụ như mô hình nhìn thấy, ví dụ http_get_monthly_summary.
         display_name:
           type: string
+          description: Nhãn hiện cho người dùng cuối, lấy step_label của công cụ; bỏ trống thì display_name, cuối cùng mới tới tool_name.
       required:
       - type
       - call_id

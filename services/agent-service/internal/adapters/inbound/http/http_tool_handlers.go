@@ -31,7 +31,7 @@ func (h *ToolingHandler) CreateTool(ctx context.Context, request gen.CreateToolR
 	if request.Body.TimeoutSeconds != nil {
 		timeout = *request.Body.TimeoutSeconds
 	}
-	command := inbound.HTTPToolCreateCommand{ConnectionID: valuePointer(request.Body.ConnectionId), Slug: request.Body.Slug, DisplayName: request.Body.DisplayName, Description: stringValue(request.Body.Description), Method: domain.HTTPToolMethod(request.Body.Method), URLTemplate: request.Body.UrlTemplate, Params: toolParams(request.Body.Params), TimeoutSeconds: timeout}
+	command := inbound.HTTPToolCreateCommand{ConnectionID: valuePointer(request.Body.ConnectionId), Slug: request.Body.Slug, DisplayName: request.Body.DisplayName, StepLabel: stringValue(request.Body.StepLabel), Description: stringValue(request.Body.Description), Method: domain.HTTPToolMethod(request.Body.Method), URLTemplate: request.Body.UrlTemplate, Params: toolParams(request.Body.Params), TimeoutSeconds: timeout}
 	if request.Body.PublicHeaders != nil {
 		command.PublicHeaders = *request.Body.PublicHeaders
 	}
@@ -59,7 +59,7 @@ func (h *ToolingHandler) UpdateTool(ctx context.Context, request gen.UpdateToolR
 	if request.Body == nil {
 		return nil, domain.ErrValidation
 	}
-	command := inbound.HTTPToolUpdateCommand{ConnectionID: changeValue(request.Body.ConnectionId), Slug: request.Body.Slug, DisplayName: request.Body.DisplayName, Description: request.Body.Description, URLTemplate: request.Body.UrlTemplate, PublicHeaders: request.Body.PublicHeaders, TimeoutSeconds: request.Body.TimeoutSeconds, SecretHeaders: changeValue(request.Body.SecretHeaders)}
+	command := inbound.HTTPToolUpdateCommand{ConnectionID: changeValue(request.Body.ConnectionId), Slug: request.Body.Slug, DisplayName: request.Body.DisplayName, StepLabel: request.Body.StepLabel, Description: request.Body.Description, URLTemplate: request.Body.UrlTemplate, PublicHeaders: request.Body.PublicHeaders, TimeoutSeconds: request.Body.TimeoutSeconds, SecretHeaders: changeValue(request.Body.SecretHeaders)}
 	if request.Body.Method != nil {
 		method := domain.HTTPToolMethod(*request.Body.Method)
 		command.Method = &method

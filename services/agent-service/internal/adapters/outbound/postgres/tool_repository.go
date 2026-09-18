@@ -28,7 +28,7 @@ func (s *Store) CreateTool(ctx context.Context, tool domain.HTTPTool) error {
 	if err != nil {
 		return err
 	}
-	return mapError(s.queries(ctx).CreateTool(ctx, sqlcgen.CreateToolParams{ID: dbID(tool.ID), ConnectionID: optionalID(tool.ConnectionID), Slug: tool.Slug, DisplayName: tool.DisplayName, Description: tool.Description, Method: string(tool.Method), UrlTemplate: tool.URLTemplate, Params: encodeToolParams(tool.Params), PublicHeaders: encodeStringMap(tool.PublicHeaders), SecretHeadersCiphertext: tool.SecretHeadersCiphertext, SecretHeaderNames: tool.SecretHeaderNames, TimeoutSeconds: timeout, CreatedAt: catalogTime(tool.CreatedAt), UpdatedAt: catalogTime(tool.UpdatedAt)}))
+	return mapError(s.queries(ctx).CreateTool(ctx, sqlcgen.CreateToolParams{ID: dbID(tool.ID), ConnectionID: optionalID(tool.ConnectionID), Slug: tool.Slug, DisplayName: tool.DisplayName, StepLabel: tool.StepLabel, Description: tool.Description, Method: string(tool.Method), UrlTemplate: tool.URLTemplate, Params: encodeToolParams(tool.Params), PublicHeaders: encodeStringMap(tool.PublicHeaders), SecretHeadersCiphertext: tool.SecretHeadersCiphertext, SecretHeaderNames: tool.SecretHeaderNames, TimeoutSeconds: timeout, CreatedAt: catalogTime(tool.CreatedAt), UpdatedAt: catalogTime(tool.UpdatedAt)}))
 }
 
 // GetTool returns a saved HTTP tool by ID.
@@ -90,7 +90,7 @@ func (s *Store) UpdateTool(ctx context.Context, tool domain.HTTPTool) error {
 	if err != nil {
 		return err
 	}
-	n, err := s.queries(ctx).UpdateTool(ctx, sqlcgen.UpdateToolParams{ID: dbID(tool.ID), ConnectionID: optionalID(tool.ConnectionID), Slug: tool.Slug, DisplayName: tool.DisplayName, Description: tool.Description, Method: string(tool.Method), UrlTemplate: tool.URLTemplate, Params: encodeToolParams(tool.Params), PublicHeaders: encodeStringMap(tool.PublicHeaders), SecretHeadersCiphertext: tool.SecretHeadersCiphertext, SecretHeaderNames: tool.SecretHeaderNames, TimeoutSeconds: timeout, UpdatedAt: catalogTime(tool.UpdatedAt)})
+	n, err := s.queries(ctx).UpdateTool(ctx, sqlcgen.UpdateToolParams{ID: dbID(tool.ID), ConnectionID: optionalID(tool.ConnectionID), Slug: tool.Slug, DisplayName: tool.DisplayName, StepLabel: tool.StepLabel, Description: tool.Description, Method: string(tool.Method), UrlTemplate: tool.URLTemplate, Params: encodeToolParams(tool.Params), PublicHeaders: encodeStringMap(tool.PublicHeaders), SecretHeadersCiphertext: tool.SecretHeadersCiphertext, SecretHeaderNames: tool.SecretHeaderNames, TimeoutSeconds: timeout, UpdatedAt: catalogTime(tool.UpdatedAt)})
 	return affected(n, err)
 }
 

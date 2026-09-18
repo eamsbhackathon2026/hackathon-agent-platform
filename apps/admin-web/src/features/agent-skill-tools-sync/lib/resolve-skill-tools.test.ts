@@ -6,7 +6,7 @@ import type { HttpTool } from "@/entities/tool";
 import { missingSkillTools, resolveSkillTools, type SkillToolCatalog } from "./resolve-skill-tools";
 
 const tool = (id: string, slug: string, connectionId: string | null = null) =>
-  ({ id, kind: "http", slug, display_name: `Tool ${slug}`, description: "", method: "GET", url_template: `/${slug}`, connection_id: connectionId, params: [], public_headers: {}, secret_header_names: [], timeout_seconds: 15, created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" }) as HttpTool;
+  ({ id, kind: "http", slug, display_name: `Tool ${slug}`, step_label: "", description: "", method: "GET", url_template: `/${slug}`, connection_id: connectionId, params: [], public_headers: {}, secret_header_names: [], timeout_seconds: 15, created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" }) as HttpTool;
 
 const mcpServer = (id: string, slug: string, toolNames: string[]) =>
   ({ id, slug, display_name: `Server ${slug}`, url: "https://example.test/mcp", allowed_tools: null, secret_header_names: [], tools: toolNames.map((name) => ({ name, description: "", input_schema: {} })), status: "ready", last_error: null, last_synced_at: null, created_at: "2026-09-15T00:00:00Z", updated_at: "2026-09-15T00:00:00Z" }) as unknown as McpServer;

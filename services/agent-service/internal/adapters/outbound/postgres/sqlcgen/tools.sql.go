@@ -80,8 +80,8 @@ func (q *Queries) CreateMCPServer(ctx context.Context, arg CreateMCPServerParams
 }
 
 const createTool = `-- name: CreateTool :exec
-INSERT INTO tools (id,connection_id,slug,display_name,description,method,url_template,params,public_headers,secret_headers_ciphertext,secret_header_names,timeout_seconds,created_at,updated_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+INSERT INTO tools (id,connection_id,slug,display_name,step_label,description,method,url_template,params,public_headers,secret_headers_ciphertext,secret_header_names,timeout_seconds,created_at,updated_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 `
 
 type CreateToolParams struct {
@@ -89,6 +89,7 @@ type CreateToolParams struct {
 	ConnectionID            pgtype.UUID        `json:"connection_id"`
 	Slug                    string             `json:"slug"`
 	DisplayName             string             `json:"display_name"`
+	StepLabel               string             `json:"step_label"`
 	Description             string             `json:"description"`
 	Method                  string             `json:"method"`
 	UrlTemplate             string             `json:"url_template"`
@@ -107,6 +108,7 @@ func (q *Queries) CreateTool(ctx context.Context, arg CreateToolParams) error {
 		arg.ConnectionID,
 		arg.Slug,
 		arg.DisplayName,
+		arg.StepLabel,
 		arg.Description,
 		arg.Method,
 		arg.UrlTemplate,
@@ -216,7 +218,7 @@ func (q *Queries) GetMCPServerForUpdate(ctx context.Context, id pgtype.UUID) (Mc
 }
 
 const getTool = `-- name: GetTool :one
-SELECT id, slug, display_name, description, kind, method, url_template, params, public_headers, secret_headers_ciphertext, secret_header_names, timeout_seconds, created_at, updated_at, connection_id FROM tools WHERE id=$1
+SELECT id, slug, display_name, description, kind, method, url_template, params, public_headers, secret_headers_ciphertext, secret_header_names, timeout_seconds, created_at, updated_at, connection_id, step_label FROM tools WHERE id=$1
 `
 
 func (q *Queries) GetTool(ctx context.Context, id pgtype.UUID) (Tool, error) {
@@ -238,12 +240,13 @@ func (q *Queries) GetTool(ctx context.Context, id pgtype.UUID) (Tool, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ConnectionID,
+		&i.StepLabel,
 	)
 	return i, err
 }
 
 const getToolForUpdate = `-- name: GetToolForUpdate :one
-SELECT id, slug, display_name, description, kind, method, url_template, params, public_headers, secret_headers_ciphertext, secret_header_names, timeout_seconds, created_at, updated_at, connection_id FROM tools WHERE id=$1 FOR UPDATE
+SELECT id, slug, display_name, description, kind, method, url_template, params, public_headers, secret_headers_ciphertext, secret_header_names, timeout_seconds, created_at, updated_at, connection_id, step_label FROM tools WHERE id=$1 FOR UPDATE
 `
 
 func (q *Queries) GetToolForUpdate(ctx context.Context, id pgtype.UUID) (Tool, error) {
@@ -265,6 +268,7 @@ func (q *Queries) GetToolForUpdate(ctx context.Context, id pgtype.UUID) (Tool, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ConnectionID,
+		&i.StepLabel,
 	)
 	return i, err
 }
@@ -318,7 +322,7 @@ func (q *Queries) ListAgentToolIDs(ctx context.Context, agentID pgtype.UUID) ([]
 }
 
 const listAllTools = `-- name: ListAllTools :many
-SELECT id, slug, display_name, description, kind, method, url_template, params, public_headers, secret_headers_ciphertext, secret_header_names, timeout_seconds, created_at, updated_at, connection_id FROM tools ORDER BY slug
+SELECT id, slug, display_name, description, kind, method, url_template, params, public_headers, secret_headers_ciphertext, secret_header_names, timeout_seconds, created_at, updated_at, connection_id, step_label FROM tools ORDER BY slug
 `
 
 func (q *Queries) ListAllTools(ctx context.Context) ([]Tool, error) {
@@ -346,6 +350,7 @@ func (q *Queries) ListAllTools(ctx context.Context) ([]Tool, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ConnectionID,
+			&i.StepLabel,
 		); err != nil {
 			return nil, err
 		}
@@ -404,7 +409,7 @@ func (q *Queries) ListMCPServers(ctx context.Context, arg ListMCPServersParams) 
 }
 
 const listTools = `-- name: ListTools :many
-SELECT id, slug, display_name, description, kind, method, url_template, params, public_headers, secret_headers_ciphertext, secret_header_names, timeout_seconds, created_at, updated_at, connection_id FROM tools WHERE ($2::timestamptz IS NULL OR (created_at,id) < ($2::timestamptz, $3::uuid))
+SELECT id, slug, display_name, description, kind, method, url_template, params, public_headers, secret_headers_ciphertext, secret_header_names, timeout_seconds, created_at, updated_at, connection_id, step_label FROM tools WHERE ($2::timestamptz IS NULL OR (created_at,id) < ($2::timestamptz, $3::uuid))
 ORDER BY created_at DESC,id DESC LIMIT $1
 `
 
@@ -439,6 +444,7 @@ func (q *Queries) ListTools(ctx context.Context, arg ListToolsParams) ([]Tool, e
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ConnectionID,
+			&i.StepLabel,
 		); err != nil {
 			return nil, err
 		}
@@ -490,7 +496,7 @@ func (q *Queries) RecordMCPServerSync(ctx context.Context, arg RecordMCPServerSy
 
 const resolveAgentHTTPTools = `-- name: ResolveAgentHTTPTools :many
 SELECT
-    t.id, t.slug, t.display_name, t.description, t.kind, t.method, t.url_template, t.params, t.public_headers, t.secret_headers_ciphertext, t.secret_header_names, t.timeout_seconds, t.created_at, t.updated_at, t.connection_id,
+    t.id, t.slug, t.display_name, t.description, t.kind, t.method, t.url_template, t.params, t.public_headers, t.secret_headers_ciphertext, t.secret_header_names, t.timeout_seconds, t.created_at, t.updated_at, t.connection_id, t.step_label,
     c.id AS api_connection_id,
     c.slug AS api_connection_slug,
     c.display_name AS api_connection_display_name,
@@ -523,6 +529,7 @@ type ResolveAgentHTTPToolsRow struct {
 	CreatedAt                            pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                            pgtype.Timestamptz `json:"updated_at"`
 	ConnectionID                         pgtype.UUID        `json:"connection_id"`
+	StepLabel                            string             `json:"step_label"`
 	ApiConnectionID                      pgtype.UUID        `json:"api_connection_id"`
 	ApiConnectionSlug                    pgtype.Text        `json:"api_connection_slug"`
 	ApiConnectionDisplayName             pgtype.Text        `json:"api_connection_display_name"`
@@ -559,6 +566,7 @@ func (q *Queries) ResolveAgentHTTPTools(ctx context.Context, agentID pgtype.UUID
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ConnectionID,
+			&i.StepLabel,
 			&i.ApiConnectionID,
 			&i.ApiConnectionSlug,
 			&i.ApiConnectionDisplayName,
@@ -674,7 +682,7 @@ func (q *Queries) UpdateMCPServer(ctx context.Context, arg UpdateMCPServerParams
 }
 
 const updateTool = `-- name: UpdateTool :execrows
-UPDATE tools SET connection_id=$2,slug=$3,display_name=$4,description=$5,method=$6,url_template=$7,params=$8,public_headers=$9,secret_headers_ciphertext=$10,secret_header_names=$11,timeout_seconds=$12,updated_at=$13
+UPDATE tools SET connection_id=$2,slug=$3,display_name=$4,step_label=$5,description=$6,method=$7,url_template=$8,params=$9,public_headers=$10,secret_headers_ciphertext=$11,secret_header_names=$12,timeout_seconds=$13,updated_at=$14
 WHERE id=$1
 `
 
@@ -683,6 +691,7 @@ type UpdateToolParams struct {
 	ConnectionID            pgtype.UUID        `json:"connection_id"`
 	Slug                    string             `json:"slug"`
 	DisplayName             string             `json:"display_name"`
+	StepLabel               string             `json:"step_label"`
 	Description             string             `json:"description"`
 	Method                  string             `json:"method"`
 	UrlTemplate             string             `json:"url_template"`
@@ -700,6 +709,7 @@ func (q *Queries) UpdateTool(ctx context.Context, arg UpdateToolParams) (int64, 
 		arg.ConnectionID,
 		arg.Slug,
 		arg.DisplayName,
+		arg.StepLabel,
 		arg.Description,
 		arg.Method,
 		arg.UrlTemplate,

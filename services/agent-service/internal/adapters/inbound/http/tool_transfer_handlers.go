@@ -65,7 +65,7 @@ func toolBundle(value gen.ToolBundle) domain.ToolBundle {
 		bundle.Connections[i] = domain.ToolBundleConnection{Slug: connection.Slug, DisplayName: connection.DisplayName, BaseURL: connection.BaseUrl, PublicHeaders: connection.PublicHeaders, SecretHeaderNames: connection.SecretHeaderNames}
 	}
 	for i, tool := range value.Tools {
-		bundle.Tools[i] = domain.ToolBundleTool{Slug: tool.Slug, DisplayName: tool.DisplayName, Description: tool.Description, Method: domain.HTTPToolMethod(tool.Method), URLTemplate: tool.UrlTemplate, ConnectionSlug: valuePointer(tool.ConnectionSlug), Params: toolParams(tool.Params), PublicHeaders: tool.PublicHeaders, TimeoutSeconds: tool.TimeoutSeconds, SecretHeaderNames: tool.SecretHeaderNames}
+		bundle.Tools[i] = domain.ToolBundleTool{Slug: tool.Slug, DisplayName: tool.DisplayName, StepLabel: stringValue(tool.StepLabel), Description: tool.Description, Method: domain.HTTPToolMethod(tool.Method), URLTemplate: tool.UrlTemplate, ConnectionSlug: valuePointer(tool.ConnectionSlug), Params: toolParams(tool.Params), PublicHeaders: tool.PublicHeaders, TimeoutSeconds: tool.TimeoutSeconds, SecretHeaderNames: tool.SecretHeaderNames}
 	}
 	return bundle
 }
@@ -77,7 +77,7 @@ func toolBundleDTO(bundle domain.ToolBundle) gen.ToolBundle {
 		value.Connections[i] = gen.ToolBundleConnection{Slug: connection.Slug, DisplayName: connection.DisplayName, BaseUrl: connection.BaseURL, PublicHeaders: nonNilHeaders(connection.PublicHeaders), SecretHeaderNames: append([]string{}, connection.SecretHeaderNames...)}
 	}
 	for i, tool := range bundle.Tools {
-		value.Tools[i] = gen.ToolBundleTool{Slug: tool.Slug, DisplayName: tool.DisplayName, Description: tool.Description, Method: gen.ToolBundleToolMethod(tool.Method), UrlTemplate: tool.URLTemplate, ConnectionSlug: nullableValue(tool.ConnectionSlug), Params: toolParamsDTO(tool.Params), PublicHeaders: nonNilHeaders(tool.PublicHeaders), TimeoutSeconds: tool.TimeoutSeconds, SecretHeaderNames: append([]string{}, tool.SecretHeaderNames...)}
+		value.Tools[i] = gen.ToolBundleTool{Slug: tool.Slug, DisplayName: tool.DisplayName, StepLabel: &tool.StepLabel, Description: tool.Description, Method: gen.ToolBundleToolMethod(tool.Method), UrlTemplate: tool.URLTemplate, ConnectionSlug: nullableValue(tool.ConnectionSlug), Params: toolParamsDTO(tool.Params), PublicHeaders: nonNilHeaders(tool.PublicHeaders), TimeoutSeconds: tool.TimeoutSeconds, SecretHeaderNames: append([]string{}, tool.SecretHeaderNames...)}
 	}
 	return value
 }

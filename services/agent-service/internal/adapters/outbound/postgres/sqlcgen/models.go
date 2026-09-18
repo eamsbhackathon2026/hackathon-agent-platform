@@ -251,6 +251,7 @@ type Tool struct {
 	CreatedAt               pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
 	ConnectionID            pgtype.UUID        `json:"connection_id"`
+	StepLabel               string             `json:"step_label"`
 }
 
 type User struct {

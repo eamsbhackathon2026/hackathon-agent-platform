@@ -158,7 +158,7 @@ func validateBundleShape(bundle domain.ToolBundle) error {
 }
 
 func bundleToolModel(entry domain.ToolBundleTool, connectionID *uuid.UUID) domain.HTTPTool {
-	return domain.HTTPTool{ConnectionID: cloneUUIDPointer(connectionID), Slug: entry.Slug, DisplayName: entry.DisplayName, Description: entry.Description, Method: entry.Method, URLTemplate: entry.URLTemplate, Params: cloneParams(entry.Params), PublicHeaders: cloneHeaders(entry.PublicHeaders), TimeoutSeconds: entry.TimeoutSeconds}
+	return domain.HTTPTool{ConnectionID: cloneUUIDPointer(connectionID), Slug: entry.Slug, DisplayName: entry.DisplayName, StepLabel: entry.StepLabel, Description: entry.Description, Method: entry.Method, URLTemplate: entry.URLTemplate, Params: cloneParams(entry.Params), PublicHeaders: cloneHeaders(entry.PublicHeaders), TimeoutSeconds: entry.TimeoutSeconds}
 }
 
 // placeholderSecrets lets header-name rules run without any secret values.

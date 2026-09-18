@@ -9,7 +9,10 @@ import "encoding/json"
 // for the run.
 type ToolSpec struct {
 	Name, Ref, Description string
-	JSONSchema             json.RawMessage
+	// DisplayName is the end-user label for this tool while it runs, already
+	// resolved from the saved labels so the run engine does not repeat that choice.
+	DisplayName string
+	JSONSchema  json.RawMessage
 }
 
 // ToolCall preserves provider metadata privately for subsequent turns.

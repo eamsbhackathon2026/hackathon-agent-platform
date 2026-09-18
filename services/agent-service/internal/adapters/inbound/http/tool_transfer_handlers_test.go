@@ -67,7 +67,7 @@ func TestToolTransferEndpoints(t *testing.T) {
 	f := newToolTransferFixture(t)
 	f.request(t, "POST", "/v1/api-connections", `{"slug":"orders","display_name":"Orders","base_url":"http://127.0.0.1:9000","secret_headers":{"Authorization":"Bearer hidden"}}`, identityBearer("admin"), 201)
 	connections := decodeIdentity[gen.ApiConnectionPage](t, f.request(t, "GET", "/v1/api-connections", "", identityBearer("member"), 200))
-	f.request(t, "POST", "/v1/tools", identityJSON(t, map[string]any{"slug": "lookup", "display_name": "Lookup", "method": "GET", "url_template": "/items/{id}", "connection_id": connections.Items[0].Id, "params": []map[string]any{{"name": "id", "type": "string", "required": true, "in": "path", "description": ""}}}), identityBearer("admin"), 201)
+	f.request(t, "POST", "/v1/tools", identityJSON(t, map[string]any{"slug": "lookup", "display_name": "Lookup", "step_label": "Đang tra cứu", "method": "GET", "url_template": "/items/{id}", "connection_id": connections.Items[0].Id, "params": []map[string]any{{"name": "id", "type": "string", "required": true, "in": "path", "description": ""}}}), identityBearer("admin"), 201)
 
 	exported := f.request(t, "GET", "/v1/tools/export", "", identityBearer("member"), 200)
 	if strings.Contains(exported.Body.String(), "Bearer hidden") {
@@ -76,6 +76,11 @@ func TestToolTransferEndpoints(t *testing.T) {
 	bundle := decodeIdentity[gen.ToolBundle](t, exported)
 	if bundle.Format != "agent-platform.tools" || len(bundle.Tools) != 1 || len(bundle.Connections) != 1 || bundle.Tools[0].ConnectionSlug.MustGet() != "orders" {
 		t.Fatalf("bundle=%s", exported.Body.String())
+	}
+	// Nhãn bước phải đi trọn đường request → lưu → export, nếu không thì môi
+	// trường đích nhận về một bộ công cụ câm.
+	if bundle.Tools[0].StepLabel == nil || *bundle.Tools[0].StepLabel != "Đang tra cứu" {
+		t.Fatalf("bundle mất nhãn bước: %s", exported.Body.String())
 	}
 
 	f.request(t, "POST", "/v1/tools/import/preview", exported.Body.String(), identityBearer("member"), 403)

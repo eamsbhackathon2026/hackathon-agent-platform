@@ -50,7 +50,7 @@ function ToolEditor({ editing, connections, onDone, onCancel }: EditorProps) {
       const secretPatch = secretHeadersPatch(Boolean(editing), replaceSecrets, secretHeaders);
       validateDistinctHeaderNames(publicHeaderValues, secretPatch.secret_headers);
       const connectionId = String(values.get("connection_id"));
-      const body = { slug: String(values.get("slug")), display_name: String(values.get("display_name")), description: String(values.get("description")), method: String(values.get("method")) as HttpTool["method"], url_template: String(values.get("url_template")), connection_id: connectionId || null, timeout_seconds: editing?.timeout_seconds ?? 15, params, public_headers: publicHeaderValues, ...secretPatch };
+      const body = { slug: String(values.get("slug")), display_name: String(values.get("display_name")), step_label: String(values.get("step_label") ?? ""), description: String(values.get("description")), method: String(values.get("method")) as HttpTool["method"], url_template: String(values.get("url_template")), connection_id: connectionId || null, timeout_seconds: editing?.timeout_seconds ?? 15, params, public_headers: publicHeaderValues, ...secretPatch };
       const saved = editing ? await updateHttpTool(editing.id, body) : await createHttpTool(body);
       await client.invalidateQueries({ queryKey: ["tools"] });
       toast.success(editing ? "Tool updated" : "Tool created");

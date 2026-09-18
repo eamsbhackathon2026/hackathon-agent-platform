@@ -18,7 +18,7 @@ func (s *Service) CreateTool(ctx context.Context, principal domain.Principal, co
 		return
 	}
 	now := s.Clock.Now()
-	tool = domain.HTTPTool{ConnectionID: cloneUUIDPointer(command.ConnectionID), Slug: command.Slug, DisplayName: command.DisplayName, Description: command.Description, Method: command.Method, URLTemplate: command.URLTemplate, Params: cloneParams(command.Params), PublicHeaders: cloneHeaders(command.PublicHeaders), TimeoutSeconds: command.TimeoutSeconds, CreatedAt: now, UpdatedAt: now}
+	tool = domain.HTTPTool{ConnectionID: cloneUUIDPointer(command.ConnectionID), Slug: command.Slug, DisplayName: command.DisplayName, StepLabel: command.StepLabel, Description: command.Description, Method: command.Method, URLTemplate: command.URLTemplate, Params: cloneParams(command.Params), PublicHeaders: cloneHeaders(command.PublicHeaders), TimeoutSeconds: command.TimeoutSeconds, CreatedAt: now, UpdatedAt: now}
 	if err = s.validateHTTPTool(ctx, tool, command.SecretHeaders); err != nil {
 		return
 	}
@@ -84,6 +84,9 @@ func (s *Service) UpdateTool(ctx context.Context, principal domain.Principal, id
 		}
 		if command.DisplayName != nil {
 			tool.DisplayName = *command.DisplayName
+		}
+		if command.StepLabel != nil {
+			tool.StepLabel = *command.StepLabel
 		}
 		if command.Description != nil {
 			tool.Description = *command.Description

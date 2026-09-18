@@ -47,7 +47,7 @@ func toolParamsDTO(values []domain.ToolParam) []gen.ToolParam {
 }
 
 func httpToolDTO(tool domain.HTTPTool) gen.HttpTool {
-	return gen.HttpTool{Id: tool.ID, ConnectionId: nullableValue(tool.ConnectionID), Slug: tool.Slug, DisplayName: tool.DisplayName, Description: tool.Description, Kind: gen.Http, Method: gen.HttpToolMethod(tool.Method), UrlTemplate: tool.URLTemplate, Params: toolParamsDTO(tool.Params), PublicHeaders: tool.PublicHeaders, SecretHeaderNames: append([]string{}, tool.SecretHeaderNames...), TimeoutSeconds: tool.TimeoutSeconds, CreatedAt: tool.CreatedAt, UpdatedAt: tool.UpdatedAt}
+	return gen.HttpTool{Id: tool.ID, ConnectionId: nullableValue(tool.ConnectionID), Slug: tool.Slug, DisplayName: tool.DisplayName, StepLabel: tool.StepLabel, Description: tool.Description, Kind: gen.Http, Method: gen.HttpToolMethod(tool.Method), UrlTemplate: tool.URLTemplate, Params: toolParamsDTO(tool.Params), PublicHeaders: tool.PublicHeaders, SecretHeaderNames: append([]string{}, tool.SecretHeaderNames...), TimeoutSeconds: tool.TimeoutSeconds, CreatedAt: tool.CreatedAt, UpdatedAt: tool.UpdatedAt}
 }
 
 func apiConnectionDTO(connection domain.APIConnection) gen.ApiConnection {

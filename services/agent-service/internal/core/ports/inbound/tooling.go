@@ -42,6 +42,7 @@ type APIConnectionUseCase interface {
 type HTTPToolCreateCommand struct {
 	ConnectionID                                *uuid.UUID
 	Slug, DisplayName, Description, URLTemplate string
+	StepLabel                                   string
 	Method                                      domain.HTTPToolMethod
 	Params                                      []domain.ToolParam
 	PublicHeaders, SecretHeaders                map[string]string
@@ -52,6 +53,7 @@ type HTTPToolCreateCommand struct {
 type HTTPToolUpdateCommand struct {
 	ConnectionID                                domain.Change[uuid.UUID]
 	Slug, DisplayName, Description, URLTemplate *string
+	StepLabel                                   *string
 	Method                                      *domain.HTTPToolMethod
 	Params                                      *[]domain.ToolParam
 	PublicHeaders                               *map[string]string
