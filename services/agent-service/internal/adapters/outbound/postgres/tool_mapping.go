@@ -104,6 +104,10 @@ func decodeMCPTools(value []byte) ([]domain.MCPTool, error) {
 	return result, nil
 }
 
+// httpToolModel reads a saved tool. secret_header_names is NOT NULL, so an empty
+// list has to stay an empty list: appending to []string(nil) would hand back nil,
+// and writing that value again sends NULL, which the column refuses. A tool with no
+// secret headers would then be impossible to edit at all.
 func httpToolModel(v sqlcgen.Tool) (domain.HTTPTool, error) {
 	params, err := decodeToolParams(v.Params)
 	if err != nil {
@@ -113,15 +117,17 @@ func httpToolModel(v sqlcgen.Tool) (domain.HTTPTool, error) {
 	if err != nil {
 		return domain.HTTPTool{}, err
 	}
-	return domain.HTTPTool{ID: uuid.UUID(v.ID.Bytes), ConnectionID: idPointer(v.ConnectionID), Slug: v.Slug, DisplayName: v.DisplayName, StepLabel: v.StepLabel, Description: v.Description, Method: domain.HTTPToolMethod(v.Method), URLTemplate: v.UrlTemplate, Params: params, PublicHeaders: headers, SecretHeadersCiphertext: append([]byte(nil), v.SecretHeadersCiphertext...), SecretHeaderNames: append([]string(nil), v.SecretHeaderNames...), TimeoutSeconds: int(v.TimeoutSeconds), CreatedAt: v.CreatedAt.Time.UTC(), UpdatedAt: v.UpdatedAt.Time.UTC()}, nil
+	return domain.HTTPTool{ID: uuid.UUID(v.ID.Bytes), ConnectionID: idPointer(v.ConnectionID), Slug: v.Slug, DisplayName: v.DisplayName, StepLabel: v.StepLabel, Description: v.Description, Method: domain.HTTPToolMethod(v.Method), URLTemplate: v.UrlTemplate, Params: params, PublicHeaders: headers, SecretHeadersCiphertext: append([]byte(nil), v.SecretHeadersCiphertext...), SecretHeaderNames: append([]string{}, v.SecretHeaderNames...), TimeoutSeconds: int(v.TimeoutSeconds), CreatedAt: v.CreatedAt.Time.UTC(), UpdatedAt: v.UpdatedAt.Time.UTC()}, nil
 }
 
+// mcpServerModel reads a saved MCP server. secret_header_names carries the same
+// NOT NULL rule as it does for tools; allowed_tools is nullable and keeps its nil.
 func mcpServerModel(v sqlcgen.McpServer) (domain.MCPServer, error) {
 	tools, err := decodeMCPTools(v.ToolsCache)
 	if err != nil {
 		return domain.MCPServer{}, err
 	}
-	server := domain.MCPServer{ID: uuid.UUID(v.ID.Bytes), Slug: v.Slug, DisplayName: v.DisplayName, URL: v.Url, SecretHeadersCiphertext: append([]byte(nil), v.SecretHeadersCiphertext...), SecretHeaderNames: append([]string(nil), v.SecretHeaderNames...), Tools: tools, Status: domain.ConnectionStatus(v.Status), LastSyncedAt: catalogTimePointer(v.LastSyncedAt), CreatedAt: v.CreatedAt.Time.UTC(), UpdatedAt: v.UpdatedAt.Time.UTC(), Revision: v.Revision}
+	server := domain.MCPServer{ID: uuid.UUID(v.ID.Bytes), Slug: v.Slug, DisplayName: v.DisplayName, URL: v.Url, SecretHeadersCiphertext: append([]byte(nil), v.SecretHeadersCiphertext...), SecretHeaderNames: append([]string{}, v.SecretHeaderNames...), Tools: tools, Status: domain.ConnectionStatus(v.Status), LastSyncedAt: catalogTimePointer(v.LastSyncedAt), CreatedAt: v.CreatedAt.Time.UTC(), UpdatedAt: v.UpdatedAt.Time.UTC(), Revision: v.Revision}
 	if v.AllowedTools != nil {
 		allowed := append([]string(nil), v.AllowedTools...)
 		server.AllowedTools = &allowed

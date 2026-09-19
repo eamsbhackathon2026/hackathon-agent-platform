@@ -212,3 +212,33 @@ func TestAppendToolResultGroupsConsecutiveResults(t *testing.T) {
 		t.Fatalf("history=%+v", history)
 	}
 }
+
+func TestSessionTitleReadsLikeTheQuestionAsked(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"plain question", "Chi tiêu tháng này thế nào?", "Chi tiêu tháng này thế nào?"},
+		{
+			"context line above the question",
+			"[Bối cảnh hệ thống: customer_id=100001]\ntiết kiệm nào của tôi đang có lãi suất cao nhất",
+			"tiết kiệm nào của tôi đang có lãi suất cao nhất",
+		},
+		{"nothing but a context line", "[Bối cảnh hệ thống: customer_id=100001]", "Cuộc hội thoại mới"},
+		{"a bracketed line a person wrote stays", "[Báo cáo tháng 9]", "[Báo cáo tháng 9]"},
+		{"blank input", "   \n  ", "Cuộc hội thoại mới"},
+		{
+			"long question ends on a whole word",
+			"[Bối cảnh hệ thống: customer_id=100001]\ntiết kiệm nào cho cá nhân tôi đang có lãi suất cao nhất hiện nay",
+			"tiết kiệm nào cho cá nhân tôi đang có lãi suất cao nhất hiện",
+		},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := sessionTitle(testCase.input); got != testCase.want {
+				t.Fatalf("sessionTitle = %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}

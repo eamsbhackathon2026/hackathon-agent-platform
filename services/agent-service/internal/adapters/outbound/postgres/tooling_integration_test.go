@@ -215,3 +215,44 @@ func TestToolBindingsReplaceRollbackResolveAndCascade(t *testing.T) {
 		t.Fatal("lock outside transaction succeeded")
 	}
 }
+
+func TestToolWithoutSecretHeadersSurvivesAReadThenWrite(t *testing.T) {
+	// Editing a saved tool reads the row, applies the change and writes the whole row
+	// back. secret_header_names is NOT NULL, so a read that turns an empty list into
+	// nil makes that write send NULL and the column refuses it — every tool without
+	// secret headers becomes uneditable, which is most of them.
+	store, tool, server, _ := toolingFixture(t)
+	ctx := context.Background()
+	tool.SecretHeadersCiphertext, tool.SecretHeaderNames = nil, []string{}
+	server.SecretHeadersCiphertext, server.SecretHeaderNames = nil, []string{}
+	if err := store.CreateTool(ctx, tool); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateMCPServer(ctx, server); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := store.GetToolForUpdate(ctx, tool.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.SecretHeaderNames == nil {
+		t.Fatal("đọc mảng rỗng ra nil: lần ghi tiếp theo sẽ gửi NULL")
+	}
+	saved.DisplayName = "Đổi tên"
+	saved.UpdatedAt = saved.UpdatedAt.Add(time.Second)
+	if err = store.UpdateTool(ctx, saved); err != nil {
+		t.Fatalf("ghi lại tool không có secret header: %v", err)
+	}
+	savedServer, err := store.GetMCPServerForUpdate(ctx, server.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if savedServer.SecretHeaderNames == nil {
+		t.Fatal("MCP server: đọc mảng rỗng ra nil")
+	}
+	savedServer.DisplayName = "Đổi tên"
+	savedServer.UpdatedAt = savedServer.UpdatedAt.Add(time.Second)
+	if _, err = store.UpdateMCPServer(ctx, savedServer); err != nil {
+		t.Fatalf("ghi lại MCP server không có secret header: %v", err)
+	}
+}

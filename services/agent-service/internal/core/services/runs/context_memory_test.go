@@ -100,10 +100,11 @@ func TestCompactionFailureFallsBackWhileUnderHardLimit(t *testing.T) {
 	}
 }
 
-func TestTruncatedCompactionDoesNotAdvanceCheckpointAndCountsUsage(t *testing.T) {
+func TestTruncatedCompactionRetriesAndKeepsTheConversationAnswerable(t *testing.T) {
 	fixture := newEngineFixture(t, []fakes.LLMStep{
 		{Result: domain.LLMResult{Text: "Incomplete summary", Usage: domain.TokenUsage{InputTokens: intRef(100), OutputTokens: intRef(20)}, FinishReason: "max_tokens"}},
-		{Result: domain.LLMResult{Text: "Fallback answer", Usage: domain.TokenUsage{InputTokens: intRef(30), OutputTokens: intRef(4)}, FinishReason: "stop"}},
+		{Result: domain.LLMResult{Text: "Durable summary", Usage: domain.TokenUsage{InputTokens: intRef(60), OutputTokens: intRef(12)}, FinishReason: "stop"}},
+		{Result: domain.LLMResult{Text: "First answer", Usage: domain.TokenUsage{InputTokens: intRef(40), OutputTokens: intRef(5)}, FinishReason: "stop"}},
 	}, func(agent *domain.Agent) {
 		agent.ContextWindowTokens = domain.MinContextWindowTokens
 		agent.MaxOutputTokens = intRef(1024)
@@ -111,8 +112,63 @@ func TestTruncatedCompactionDoesNotAdvanceCheckpointAndCountsUsage(t *testing.T)
 	sessionID := seedLongConversation(t, fixture, 12, 1200)
 	fixture.command.SessionID = &sessionID
 	run, err := fixture.service.RunSync(t.Context(), fixture.principal, fixture.command)
-	if err != nil || run.Status != domain.RunSucceeded || run.Usage.InputTokens == nil || *run.Usage.InputTokens != 130 || run.Usage.OutputTokens == nil || *run.Usage.OutputTokens != 24 {
+	if err != nil || run.Status != domain.RunSucceeded || run.Output == nil || *run.Output != "First answer" {
 		t.Fatalf("run=%+v err=%v", run, err)
+	}
+	snapshot, err := fixture.store.GetLatestContextSnapshot(t.Context(), sessionID)
+	if err != nil || snapshot.Summary != "Durable summary" {
+		t.Fatalf("snapshot=%+v err=%v", snapshot, err)
+	}
+	// Mốc thời gian phải là lúc bản tóm tắt được nhận, không phải giá trị rỗng: một
+	// checkpoint mang năm 0001 vẫn ghi được vào cột NOT NULL và chỉ lộ ra khi đọc lại.
+	if snapshot.CreatedAt.IsZero() {
+		t.Fatalf("checkpoint không có mốc thời gian: %+v", snapshot)
+	}
+	// Both attempts stay visible: the truncated one is what explains the extra cost.
+	spans, _ := fixture.store.ListSpans(t.Context(), run.ID, 20, nil)
+	attempts := 0
+	for _, span := range spans {
+		if span.Name == "llm.compact_context" {
+			attempts++
+		}
+	}
+	if attempts != 2 {
+		t.Fatalf("compaction attempts=%d spans=%+v", attempts, spans)
+	}
+	if run.Usage.InputTokens == nil || *run.Usage.InputTokens != 200 || run.Usage.OutputTokens == nil || *run.Usage.OutputTokens != 37 {
+		t.Fatalf("usage=%+v", run.Usage)
+	}
+}
+
+func TestCompactionTruncatedEveryAttemptDoesNotAdvanceCheckpointAndCountsUsage(t *testing.T) {
+	truncated := fakes.LLMStep{Result: domain.LLMResult{Text: "Incomplete summary", Usage: domain.TokenUsage{InputTokens: intRef(100), OutputTokens: intRef(20)}, FinishReason: "max_tokens"}}
+	fixture := newEngineFixture(t, []fakes.LLMStep{
+		truncated, truncated, truncated,
+		{Result: domain.LLMResult{Text: "Fallback answer", Usage: domain.TokenUsage{InputTokens: intRef(30), OutputTokens: intRef(4)}, FinishReason: "stop"}},
+	}, func(agent *domain.Agent) {
+		// A window wide enough for retries to have somewhere to go: each attempt
+		// summarises half as much and is allowed more room to write.
+		agent.ContextWindowTokens = domain.DefaultContextWindowTokens
+		agent.MaxOutputTokens = intRef(1024)
+	}, nil)
+	sessionID := seedLongConversation(t, fixture, 24, 3000)
+	fixture.command.SessionID = &sessionID
+	run, err := fixture.service.RunSync(t.Context(), fixture.principal, fixture.command)
+	if err != nil || run.Status != domain.RunSucceeded || run.Output == nil || *run.Output != "Fallback answer" {
+		t.Fatalf("run=%+v err=%v", run, err)
+	}
+	spans, _ := fixture.store.ListSpans(t.Context(), run.ID, 20, nil)
+	attempts := 0
+	for _, span := range spans {
+		if span.Name == "llm.compact_context" {
+			attempts++
+		}
+	}
+	if attempts != summaryAttempts {
+		t.Fatalf("compaction attempts=%d, want %d", attempts, summaryAttempts)
+	}
+	if run.Usage.InputTokens == nil || *run.Usage.InputTokens != 330 || run.Usage.OutputTokens == nil || *run.Usage.OutputTokens != 64 {
+		t.Fatalf("usage=%+v", run.Usage)
 	}
 	if _, err = fixture.store.GetLatestContextSnapshot(t.Context(), sessionID); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("truncated summary advanced checkpoint: %v", err)

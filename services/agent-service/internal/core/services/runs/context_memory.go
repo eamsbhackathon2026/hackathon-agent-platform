@@ -13,8 +13,17 @@ import (
 
 const (
 	minimumContextTailUnits = 1
-	summaryOutputTokens     = 1024
-	maxSummaryBytes         = 64 * 1024
+	// A reasoning model bills its thinking against the output budget, which is how a
+	// summary comes back empty at 1024. Room to write is taken from the same window
+	// the segment has to fit in, so both ends scale with the window instead of being
+	// one number that is too tight on a large assistant and too greedy on a small one.
+	minSummaryOutputTokens = 1024
+	maxSummaryOutputTokens = 8192
+	summaryAttempts        = 3
+	// Compaction runs again on later iterations of the same run, so the per-attempt
+	// limit alone does not bound what a run can spend on summarising.
+	maxSummaryCallsPerRun = 6
+	maxSummaryBytes       = 64 * 1024
 )
 
 var errCompactionInputTooLarge = errors.New("context compaction input exceeds budget")
@@ -151,55 +160,69 @@ func (s *Service) compactOldestContext(ctx context.Context, agent domain.Agent, 
 			compactable++
 		}
 	}
-	if compactable <= 0 {
+	if compactable <= 0 || state.summaryCalls >= maxSummaryCallsPerRun {
 		return false, nil
 	}
-	zero, maxOutput := 0.0, summaryOutputTokens
+	zero, maxOutput := 0.0, summaryOutputStart(agent)
 	summaryAgent := agent
 	summaryAgent.SystemPrompt = summarySystemPrompt
 	summaryAgent.Temperature = &zero
 	summaryAgent.MaxOutputTokens = &maxOutput
+	// A summary that comes back cut off is usually a bad pairing of this attempt with
+	// this model, not a conversation that cannot be summarised: a reasoning model can
+	// spend the whole output budget thinking and emit nothing. Each retry therefore
+	// summarises less and allows more room to write, instead of failing the run and
+	// leaving the customer's question unanswered.
 	cut := (compactable + 1) / 2
-	var payload string
-	for cut >= 1 {
-		var err error
-		payload, err = buildSummaryPayload(state.snapshot, state.units[:cut])
+	var result domain.LLMResult
+	var coveredThrough int64
+	var ended time.Time
+	for attempt := 1; ; attempt++ {
+		payload, fitted, err := fitSummaryPayload(state, summaryAgent, cut)
 		if err != nil {
 			return false, err
 		}
-		messages := []domain.ChatMessage{{Role: "user", Text: payload}}
-		if !state.budgeter.assess(summaryAgent, messages, nil).overHard() {
+		if fitted < 1 {
+			return false, errCompactionInputTooLarge
+		}
+		cut = fitted
+		spanID, idErr := s.IDs.NewID()
+		if idErr != nil {
+			return false, idErr
+		}
+		started := s.Clock.Now()
+		state.summaryCalls++
+		var callErr error
+		result, callErr = client.Stream(ctx, domain.LLMRequest{Model: agent.Model, SystemPrompt: summarySystemPrompt, Messages: []domain.ChatMessage{{Role: "user", Text: payload}}, Temperature: &zero, MaxOutputTokens: &maxOutput}, nil)
+		ended = s.Clock.Now()
+		if result.Usage.InputTokens != nil || result.Usage.OutputTokens != nil {
+			state.usage.add(result.Usage)
+		}
+		spanFailure := safeRunFailure(callErr)
+		truncated := callErr == nil && (len(result.ToolCalls) > 0 || strings.TrimSpace(result.Text) == "" || finishReasonTruncated(result.FinishReason))
+		if truncated {
+			spanFailure = &domain.RunFailure{Code: "validation_failed", Message: "Kết nối AI trả về bản tóm tắt không hợp lệ."}
+		}
+		coveredThrough = state.units[cut-1].throughSeq
+		if spanErr := s.recordContextCompactionSpan(ctx, state, spanID, agent.Model, coveredThrough, started, ended, result, spanFailure); spanErr != nil {
+			return false, spanErr
+		}
+		if callErr != nil {
+			return false, callErr
+		}
+		if !truncated {
 			break
 		}
-		cut /= 2
-	}
-	if cut < 1 {
-		return false, errCompactionInputTooLarge
-	}
-	summaryMessages := []domain.ChatMessage{{Role: "user", Text: payload}}
-	spanID, err := s.IDs.NewID()
-	if err != nil {
-		return false, err
-	}
-	started := s.Clock.Now()
-	result, callErr := client.Stream(ctx, domain.LLMRequest{Model: agent.Model, SystemPrompt: summarySystemPrompt, Messages: summaryMessages, Temperature: &zero, MaxOutputTokens: &maxOutput}, nil)
-	ended := s.Clock.Now()
-	if result.Usage.InputTokens != nil || result.Usage.OutputTokens != nil {
-		state.usage.add(result.Usage)
-	}
-	spanFailure := safeRunFailure(callErr)
-	if callErr == nil && (len(result.ToolCalls) > 0 || strings.TrimSpace(result.Text) == "" || finishReasonTruncated(result.FinishReason)) {
-		spanFailure = &domain.RunFailure{Code: "validation_failed", Message: "Kết nối AI trả về bản tóm tắt không hợp lệ."}
-	}
-	coveredThrough := state.units[cut-1].throughSeq
-	if spanErr := s.recordContextCompactionSpan(ctx, state, spanID, agent.Model, coveredThrough, started, ended, result, spanFailure); spanErr != nil {
-		return false, spanErr
-	}
-	if callErr != nil {
-		return false, callErr
-	}
-	if spanFailure != nil {
-		return false, errors.New("invalid context summary")
+		outputCap := summaryOutputCap(agent)
+		if attempt >= summaryAttempts || state.summaryCalls >= maxSummaryCallsPerRun || (cut == 1 && maxOutput >= outputCap) {
+			return false, errors.New("invalid context summary")
+		}
+		if cut > 1 {
+			cut /= 2
+		}
+		if maxOutput < outputCap {
+			maxOutput = min(maxOutput*2, outputCap)
+		}
 	}
 	summary, _ := domain.TruncateUTF8(strings.TrimSpace(result.Text), maxSummaryBytes)
 	id, err := s.IDs.NewID()
@@ -237,6 +260,47 @@ func (s *Service) compactOldestContext(ctx context.Context, agent domain.Agent, 
 	return true, nil
 }
 
+// summaryOutputCap bounds how much room a retry may hand the summariser. Room for
+// writing comes out of the same window the segment being summarised has to fit in,
+// so a generous cap on a small window would starve the input and turn a retry into
+// an immediate give-up.
+func summaryOutputCap(agent domain.Agent) int {
+	return max(min(contextWindow(agent)/4, maxSummaryOutputTokens), summaryOutputStart(agent))
+}
+
+// summaryOutputStart is what the first attempt asks for. It stays modest on a small
+// window — taking a sixth of it for writing would starve the segment being summarised
+// — and a retry is what earns more room.
+func summaryOutputStart(agent domain.Agent) int {
+	return max(min(contextWindow(agent)/16, 2048), minSummaryOutputTokens)
+}
+
+func contextWindow(agent domain.Agent) int {
+	if agent.ContextWindowTokens == 0 {
+		return domain.DefaultContextWindowTokens
+	}
+	return agent.ContextWindowTokens
+}
+
+// fitSummaryPayload halves the segment until the summary request itself fits the
+// budget, and reports how many units the returned payload actually covers. A zero
+// count means even one unit is too large to summarise.
+func fitSummaryPayload(state *executionState, summaryAgent domain.Agent, cut int) (string, int, error) {
+	for ; cut >= 1; cut /= 2 {
+		payload, err := buildSummaryPayload(state.snapshot, state.units[:cut])
+		if err != nil {
+			return "", 0, err
+		}
+		if !state.budgeter.assess(summaryAgent, []domain.ChatMessage{{Role: "user", Text: payload}}, nil).overHard() {
+			return payload, cut, nil
+		}
+	}
+	return "", 0, nil
+}
+
 func contextLimitFailure() *domain.RunFailure {
-	return &domain.RunFailure{Code: "context_limit_exceeded", Message: "Hội thoại vượt dung lượng của mô hình. Hãy tăng dung lượng hội thoại hoặc bắt đầu cuộc trò chuyện mới."}
+	// The customer is not always the reason the conversation no longer fits: rewriting
+	// the older turns into a summary can fail on its own. Say what to try first rather
+	// than sending them straight to a new conversation.
+	return &domain.RunFailure{Code: "context_limit_exceeded", Message: "Chưa rút gọn được hội thoại cho vừa dung lượng của mô hình. Hãy thử gửi lại, tăng dung lượng hội thoại của trợ lý, hoặc bắt đầu cuộc trò chuyện mới."}
 }

@@ -58,7 +58,11 @@ describe("AgentForm", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Assistant name" }), { target: { value: "Exact capacity" } });
     fireEvent.click(screen.getByRole("button", { name: "Save assistant" }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ context_window_tokens: 50000 }), expect.anything()));
-    expect(screen.getByText(/Older messages are summarized automatically/)).toBeInTheDocument();
+    // A capacity of 50,000 with the default 2,048 reply reserve leaves 42,952 and
+    // starts summarizing at 32,214 — the point of showing it is that neither number
+    // is guessable from the field.
+    expect(screen.getByText(/Leaves/)).toHaveTextContent("42,952 tokens");
+    expect(screen.getByText(/Leaves/)).toHaveTextContent("32,214 tokens");
   });
 
   it("shows the response-budget validation error", async () => {

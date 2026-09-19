@@ -187,12 +187,51 @@ func runSource(p domain.Principal) domain.RunSource {
 }
 
 func sessionTitle(input string) string {
-	title := strings.TrimSpace(input)
+	title := firstSpokenLine(input)
 	if title == "" {
-		title = "Cuộc hội thoại mới"
+		return "Cuộc hội thoại mới"
 	}
-	trimmed, _ := domain.TruncateUTF8(title, 80)
+	trimmed, cut := domain.TruncateUTF8(title, 80)
+	if cut {
+		trimmed = trimTrailingPartialWord(trimmed)
+	}
 	return trimmed
+}
+
+// firstSpokenLine skips the lines a caller prepends for the model rather than for a
+// reader. An integration that carries session context does it as a bracketed line of
+// key-value pairs above the question — that line names the conversation no better than
+// a header names a letter, and it leaks machine detail into a list people read.
+//
+// The key-value shape is what makes this safe to apply to every caller: a bracketed
+// line a person actually wrote ("[Báo cáo tháng 9]") keeps its place as the title.
+func firstSpokenLine(input string) string {
+	for _, line := range strings.Split(input, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || isMachineContextLine(line) {
+			continue
+		}
+		return line
+	}
+	return ""
+}
+
+func isMachineContextLine(line string) bool {
+	if !strings.HasPrefix(line, "[") || !strings.HasSuffix(line, "]") {
+		return false
+	}
+	return strings.ContainsAny(line, ":=")
+}
+
+// trimTrailingPartialWord drops the word the byte limit cut in half, so a title ends
+// on something readable instead of mid-syllable. A title with no space to fall back
+// on keeps its cut form: half a long word still beats an empty title.
+func trimTrailingPartialWord(title string) string {
+	space := strings.LastIndexByte(title, ' ')
+	if space <= 0 {
+		return title
+	}
+	return strings.TrimRight(title[:space], " ")
 }
 
 var _ inbound.RunUseCase = (*Service)(nil)

@@ -8,6 +8,7 @@ import { GREENNODE_MODELS, ProviderModelPicker, providerQueries, type ProviderMo
 import { apiClient } from "@/shared/api";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Checkbox, Collapsible, CollapsibleContent, CollapsibleTrigger, Input, Label, Slider, Textarea } from "@/shared/ui";
 import { agentFormSchema, type AgentFormValues } from "../model/agent-form-schema";
+import { conversationBudget } from "../model/conversation-budget";
 
 type Props = { initial?: Agent; preferredProviderId?: string | undefined; readOnly?: boolean; saving?: boolean; onSubmit: (values: AgentFormValues) => Promise<void> | void };
 const defaults: AgentFormValues = { name: "", description: "", provider_id: "", model: "", system_prompt: "", temperature: 0.5, max_output_tokens: 2048, show_thinking: false, context_window_tokens: 32768, max_iterations: 8, timeout_seconds: 120 };
@@ -18,6 +19,9 @@ export function AgentForm({ initial, preferredProviderId, readOnly = false, savi
   const selected = useWatch({ control: form.control, name: "provider_id" });
   const selectedModel = useWatch({ control: form.control, name: "model" });
   const temperature = useWatch({ control: form.control, name: "temperature" });
+  const contextWindow = useWatch({ control: form.control, name: "context_window_tokens" });
+  const maxOutput = useWatch({ control: form.control, name: "max_output_tokens" });
+  const budget = conversationBudget(contextWindow, maxOutput);
   const [loadedModels, setLoadedModels] = useState<{ providerId: string; items: ProviderModel[] } | null>(null);
   const selectedProvider = providers.data?.find((item) => item.id === selected);
   const models = selectedProvider?.kind === "greennode" ? GREENNODE_MODELS : loadedModels?.providerId === selected ? loadedModels.items : [];
@@ -47,7 +51,7 @@ export function AgentForm({ initial, preferredProviderId, readOnly = false, savi
     <Collapsible><Card><CardHeader><CollapsibleTrigger asChild><Button type="button" variant="ghost">Advanced options</Button></CollapsibleTrigger></CardHeader><CollapsibleContent><CardContent className="grid gap-5 md:grid-cols-2">
       <Field label="Creativity"><div className="flex items-center gap-3 text-xs"><span>Precise</span><Slider min={0} max={2} step={0.1} value={[temperature ?? 0.5]} onValueChange={([value]) => form.setValue("temperature", value ?? 0.5)} /><span>Creative</span></div></Field>
       <Field label="Maximum response length" error={error("max_output_tokens")}><Input type="number" min={1} {...form.register("max_output_tokens", { setValueAs: (value) => value === "" ? null : Number(value) })} /></Field>
-      <Field label="Conversation capacity" error={error("context_window_tokens")}><Input type="number" min={8192} max={2000000} step={1} list="context-window-presets" {...form.register("context_window_tokens", { valueAsNumber: true })} /><datalist id="context-window-presets"><option value={32768}>Compact · 32K</option><option value={65536}>Standard · 64K</option><option value={128000}>Large · 128K</option><option value={256000}>Extended · 256K</option><option value={1000000}>Maximum · 1M</option></datalist><span className="text-xs font-normal text-muted-foreground">Choose a suggested size or enter the model's exact token capacity. Older messages are summarized automatically near this limit.</span></Field>
+      <Field label="Conversation capacity" error={error("context_window_tokens")}><Input type="number" min={8192} max={2000000} step={1} list="context-window-presets" {...form.register("context_window_tokens", { valueAsNumber: true })} /><datalist id="context-window-presets"><option value={32768}>Compact · 32K</option><option value={65536}>Standard · 64K</option><option value={128000}>Large · 128K</option><option value={256000}>Extended · 256K</option><option value={1000000}>Maximum · 1M</option></datalist><span className="text-xs font-normal text-muted-foreground">Choose a suggested size or enter the model's exact token capacity.</span>{budget ? <span className="text-xs font-normal text-muted-foreground">Leaves <strong className="font-medium">{formatTokens(budget.working)}</strong> for the conversation, after {formatTokens(budget.reply)} held for the reply and {formatTokens(budget.safety)} for counting differences. Earlier messages start being summarized once a conversation passes <strong className="font-medium">{formatTokens(budget.summarizeFrom)}</strong> — three quarters of that room.</span> : null}</Field>
       <div className="md:col-span-2"><Label className="flex items-start gap-3 rounded-md border p-3"><Checkbox className="mt-0.5" checked={form.watch("show_thinking")} onCheckedChange={(checked) => form.setValue("show_thinking", checked === true, { shouldDirty: true })} /><span className="grid gap-1"><span>Narrate the assistant's thinking</span><span className="text-xs font-normal text-muted-foreground">While the assistant works, callers receive a short summary of what it is thinking, so a product can show progress instead of a blank wait. It never changes the answer and is never stored with the conversation. Costs extra output tokens, and does nothing on models that do not summarize their thinking.</span></span></Label></div>
       <Field label="Maximum processing steps" error={error("max_iterations")}><Input type="number" min={1} max={25} {...form.register("max_iterations", { valueAsNumber: true })} /></Field>
       <Field label="Maximum wait time (seconds)" error={error("timeout_seconds")}><Input type="number" min={10} max={600} {...form.register("timeout_seconds", { valueAsNumber: true })} /></Field>
@@ -55,4 +59,6 @@ export function AgentForm({ initial, preferredProviderId, readOnly = false, savi
     {!readOnly ? <div className="flex justify-end"><Button disabled={saving} type="submit">{saving ? "Saving…" : "Save assistant"}</Button></div> : null}
   </fieldset></form>;
 }
+const tokenFormat = new Intl.NumberFormat("en-US");
+function formatTokens(value: number) { return `${tokenFormat.format(value)} tokens`; }
 function Field({ label, error, children }: { label: string; error?: string | undefined; children: React.ReactNode }) { return <Label className="grid gap-2"><span>{label}</span>{children}{error ? <span className="text-sm text-destructive">{error}</span> : null}</Label>; }

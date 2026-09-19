@@ -23,6 +23,8 @@ type executionState struct {
 	promptEstimate   int
 	calibrationSaved bool
 	compactionFailed bool
+	// Lượt gọi mô hình để tóm tắt, cộng dồn cả run chứ không riêng một vòng.
+	summaryCalls     int
 	protectedFromSeq int64
 	usage            usageAccumulator
 	loop             *domain.LoopDetector
